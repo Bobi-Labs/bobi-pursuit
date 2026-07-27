@@ -1,0 +1,43 @@
+# This file becomes the ROOT .gitignore of the public repo, so it has to stand
+# on its own. It previously contained only `.vercel`, and every other rule that
+# protected this tree lived in the PRIVATE parent repo's .gitignore. Those rules
+# do not survive extraction: in a fresh `git init` of this directory `.env.local`,
+# `*.pem`, `.mcp.json` and `CLAUDE.local.md` are all unignored, so the first
+# `git add -A` on a machine that happened to hold one would have committed it to
+# a public repo permanently.
+
+# env
+.env
+.env*
+!.env.example
+
+# keys and certs
+*.pem
+*.key
+*.p12
+
+# hosting
+.vercel
+
+# dependencies and build output
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# agent and tooling local state.
+# NOTE the `**/` prefix: a pattern containing a middle slash is anchored to the
+# directory of its own .gitignore, so `.claude/*.local.json` would protect only
+# the repo root and silently miss every subdirectory.
+.mcp.json
+CLAUDE.local.md
+**/.claude/settings.local.json
+**/.claude/*.local.json
+
+# operator workflow directories that have historically carried private material
+.screenshots/
+.transcripts/
+.tmp/
+
+.DS_Store

@@ -1,0 +1,203 @@
+@import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Bobi-Pursuit — theme tokens.
+ *
+ * This block is a faithful port of the self-hosted dashboard's
+ * `app/globals.css`. It is not "inspired by" it: the free tier and the
+ * self-hosted tool are meant to read as the SAME PRODUCT, and the palette is
+ * the loudest signal of that. Emerald on deep navy, calm semantics, dense type.
+ *
+ * Two deliberate divergences from upstream, both forced by this app's
+ * constraints (static export, zero npm dependencies):
+ *
+ *   1. No `tw-animate-css` import — that's a package, and this app ships with
+ *      exactly three dependencies (next, react, react-dom). Nothing here uses
+ *      `animate-in`; Tailwind's built-in `animate-pulse` covers the one place
+ *      the dashboard animates.
+ *   2. No `next/font` — a webfont fetched at build time is a network
+ *      dependency in a build that must work offline, and a self-hosted copy is
+ *      bytes a local-first tool shouldn't spend. The stacks below name Inter
+ *      and JetBrains Mono first (users who have them get them), then fall back
+ *      to the system UI / `ui-monospace` faces, which are metrically close
+ *      enough that the dense 10–13px scale still reads correctly.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: #0a0f1a;
+  --foreground: #f0f4f8;
+  --card: #141c2b;
+  --card-foreground: #f0f4f8;
+  --popover: #1a2435;
+  --popover-foreground: #f0f4f8;
+  --primary: #22c55e;
+  --primary-foreground: #0a0f1a;
+  --secondary: #1a2435;
+  --secondary-foreground: #f0f4f8;
+  --muted: #0f1520;
+  --muted-foreground: #94a3b8;
+  --accent: #1a2435;
+  --accent-foreground: #f0f4f8;
+  --destructive: #ef4444;
+  --destructive-foreground: #f0f4f8;
+  --border: #1e2d42;
+  --input: #1e2d42;
+  --ring: #22c55e;
+  --chart-1: #22c55e;
+  --chart-2: #3b82f6;
+  --chart-3: #f59e0b;
+  --chart-4: #8b5cf6;
+  --chart-5: #ef4444;
+  --radius: 0.5rem;
+  --sidebar: #0f1520;
+  --sidebar-foreground: #f0f4f8;
+  --sidebar-primary: #22c55e;
+  --sidebar-primary-foreground: #0a0f1a;
+  --sidebar-accent: rgba(34, 197, 94, 0.12);
+  --sidebar-accent-foreground: #22c55e;
+  --sidebar-border: #1e2d42;
+  --sidebar-ring: #22c55e;
+  --warning: #f59e0b;
+  --info: #3b82f6;
+  --purple: #8b5cf6;
+  --surface: #0f1520;
+  --elevated: #1a2435;
+  --border-focus: #2a3f5f;
+  --text-bright: #f0f4f8;
+  --text-body: #94a3b8;
+  --text-muted: #475569;
+  --primary-glow: rgba(34, 197, 94, 0.12);
+}
+
+@theme inline {
+  --font-sans:
+    "Inter", "Inter var", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Helvetica Neue", Arial, ui-sans-serif, system-ui, sans-serif;
+  --font-mono:
+    "JetBrains Mono", ui-monospace, "SFMono-Regular",
+    "Segoe UI Mono", Menlo, Consolas, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-purple: var(--purple);
+  --color-surface: var(--surface);
+  --color-elevated: var(--elevated);
+  /* Not in the upstream @theme block, but the token exists there and the
+     dense UI needs a third text step below `muted-foreground` for hints and
+     placeholders. Exposed so it is a Tailwind class, not a magic hex. */
+  --color-text-muted: var(--text-muted);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    /* Native form controls, scrollbars and the browser's own chrome should
+       agree with the palette instead of flashing white. */
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv11", "ss01", "ss03";
+  }
+
+  /* Every scroller in this app is an internal panel on a dark card. The
+     default light scrollbar cuts a bright stripe through them. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border: 2px solid transparent;
+    background-clip: content-box;
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--border-focus);
+  }
+
+  ::selection {
+    background: var(--primary-glow);
+    color: var(--foreground);
+  }
+}
+
+/* ── Named utilities ──────────────────────────────────────────────────────
+ * The dashboard's components lean on Tailwind core for everything except the
+ * two things below, which are used often enough (and are fiddly enough) to
+ * earn a name rather than being re-typed as arbitrary values. */
+
+/** The emerald ring/glow a high-fit card wears. Matches the upstream kanban
+ *  card's `shadow-[0_0_0_1px_rgba(34,197,94,0.15),_0_0_14px_-6px_...]`. */
+@utility glow-primary {
+  box-shadow:
+    0 0 0 1px rgba(34, 197, 94, 0.15),
+    0 0 14px -6px rgba(34, 197, 94, 0.4);
+}
+
+/** The generated banner backdrop behind the app header — a themed mesh
+ *  gradient, no image asset. Applied to an `aria-hidden` layer. */
+@utility banner-mesh {
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(34, 197, 94, 0.16), transparent 45%),
+    radial-gradient(120% 140% at 100% 0%, rgba(59, 130, 246, 0.14), transparent 50%),
+    linear-gradient(180deg, rgba(20, 28, 43, 0.85), rgba(10, 15, 26, 0.95));
+}
+
+/** The faint grid that sits on top of the mesh, faded out downward. */
+@utility banner-grid {
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: linear-gradient(180deg, black, transparent);
+}

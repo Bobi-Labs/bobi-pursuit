@@ -111,7 +111,7 @@ export function JobStudioPanel({
         />
         <div className="py-20 text-center">
           <div className="text-[14px] font-semibold">No job open</div>
-          <div className="mx-auto mt-1.5 max-w-md text-[12px] leading-relaxed text-muted-foreground">
+          <div className="mx-auto mt-1.5 max-w-md text-[14px] leading-relaxed text-muted-foreground">
             Pick one from the{" "}
             <button
               type="button"
@@ -158,7 +158,7 @@ export function JobStudioPanel({
               <h2 className="text-[19px] font-bold leading-tight -tracking-[0.015em]">
                 {job.title}
               </h2>
-              <div className="mt-1 text-[11.5px] text-muted-foreground">
+              <div className="mt-1 text-[12px] text-muted-foreground">
                 {job.company || "Unknown company"} ·{" "}
                 {job.budgetHint || "budget undisclosed"} · added{" "}
                 {relTime(job.createdAt)}
@@ -168,12 +168,12 @@ export function JobStudioPanel({
                   href={href}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="mt-2 inline-block text-[11px] text-primary hover:underline"
+                  className="mt-2 inline-block text-[12px] text-primary hover:underline"
                 >
                   View the original posting ↗
                 </a>
               ) : job.url ? (
-                <div className="mt-2 truncate font-mono text-[10.5px] text-text-muted">
+                <div className="mt-2 truncate font-mono text-[12px] text-text-muted">
                   {job.url}
                 </div>
               ) : null}
@@ -181,7 +181,7 @@ export function JobStudioPanel({
 
             <div className="grid grid-cols-3 items-center gap-4 border-border text-center sm:border-l sm:pl-4">
               <div>
-                <div className="text-[9.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Tracks
                 </div>
                 <div className="mt-1 font-mono text-[15px] font-extrabold">
@@ -189,15 +189,15 @@ export function JobStudioPanel({
                 </div>
               </div>
               <div>
-                <div className="text-[9.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Engine
                 </div>
-                <div className="mt-1 font-mono text-[11px] font-bold leading-tight">
+                <div className="mt-1 font-mono text-[14px] font-bold leading-tight">
                   {score ? (byClaude ? "claude" : "rules") : "—"}
                 </div>
               </div>
               <div>
-                <div className="mb-0.5 text-[9.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="mb-0.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Fit
                 </div>
                 <ScoreRing score={fit} />
@@ -231,7 +231,7 @@ export function JobStudioPanel({
       {/* ── next action rail ── */}
       <aside className="min-w-0 lg:sticky lg:top-2">
         <PanelCard>
-          <div className="mb-3 text-[12px] font-bold">Next action</div>
+          <div className="mb-3 text-[14px] font-bold">Next action</div>
 
           <div className="mb-3 space-y-2">
             {[
@@ -273,7 +273,7 @@ export function JobStudioPanel({
               <div key={step.label} className="flex items-start gap-2">
                 <span
                   className={cx(
-                    "mt-0.5 grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full border text-[8px] font-bold",
+                    "mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border text-[11px] font-bold leading-none",
                     step.done
                       ? "border-emerald-500/40 bg-emerald-500/20 text-emerald-400"
                       : "border-border text-muted-foreground",
@@ -284,14 +284,14 @@ export function JobStudioPanel({
                 <div className="min-w-0">
                   <div
                     className={cx(
-                      "text-[12px] font-medium",
+                      "text-[14px] font-medium",
                       step.done ? "text-foreground" : "text-muted-foreground",
                     )}
                   >
                     {step.label}
                   </div>
                   {step.note ? (
-                    <div className="text-[10px] text-muted-foreground">
+                    <div className="text-[14px] text-muted-foreground">
                       {step.note}
                     </div>
                   ) : null}
@@ -332,7 +332,7 @@ export function JobStudioPanel({
                     ? "↻ Score again with Claude"
                     : "✨ Score with Claude"}
               </Button>
-              <div className="mt-1.5 text-center text-[10px] leading-snug text-text-muted">
+              <div className="mt-1.5 text-center text-[14px] leading-snug text-text-muted">
                 {scoring
                   ? "One API call, a few seconds."
                   : byClaude
@@ -343,13 +343,13 @@ export function JobStudioPanel({
           ) : null}
 
           {scoreError ? (
-            <div className="mt-2.5 rounded-md border border-red-500/30 bg-red-500/10 px-2.5 py-2 text-[11px] leading-snug text-red-300">
+            <div className="mt-2.5 rounded-md border border-red-500/30 bg-red-500/10 px-2.5 py-2 text-[14px] leading-snug text-red-300">
               {scoreError}
             </div>
           ) : null}
 
           <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-3">
-            <span className="text-[10.5px] text-text-muted">
+            <span className="text-[12px] text-text-muted">
               Updated {relTime(job.updatedAt)}
             </span>
             {confirmDelete ? (
@@ -386,10 +386,10 @@ export function JobStudioPanel({
 function Field({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="rounded-[8px] border border-border bg-card/55 p-2.5">
-      <div className="text-[9.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         {label}
       </div>
-      <div className={cx("mt-1 truncate text-[12px]", mono && "font-mono")}>
+      <div className={cx("mt-1 truncate text-[14px]", mono && "font-mono")}>
         {value || "—"}
       </div>
     </div>
@@ -409,7 +409,7 @@ function StudioOverview({ job }: { job: Job }) {
       </div>
       <div>
         <SectionLabel>The posting</SectionLabel>
-        <div className="max-h-[420px] overflow-y-auto whitespace-pre-wrap rounded-[10px] border border-border bg-card/50 p-3.5 text-[12px] leading-[1.55]">
+        <div className="max-h-[420px] overflow-y-auto whitespace-pre-wrap rounded-[10px] border border-border bg-card/50 p-3.5 text-[14px] leading-[1.55]">
           {job.description || (
             <span className="text-muted-foreground">
               No description captured — the scorer had nothing to read, so treat
@@ -444,7 +444,7 @@ function StudioScoring({
         <SectionLabel>
           Track fit — the headline number is the best of these
         </SectionLabel>
-        <span className="mb-2 font-mono text-[10px] text-text-muted">
+        <span className="mb-2 font-mono text-[12px] text-text-muted">
           {score.engine} · {relTime(score.scoredAt)}
         </span>
       </div>
@@ -467,7 +467,7 @@ function StudioScoring({
                 </ColorBadge>
                 <span
                   className={cx(
-                    "truncate text-[11.5px] font-semibold",
+                    "truncate text-[14px] font-semibold",
                     row.removed && "text-muted-foreground line-through",
                   )}
                 >
@@ -479,7 +479,7 @@ function StudioScoring({
             </div>
             <p
               className={cx(
-                "mt-1.5 text-[11px] leading-relaxed",
+                "mt-1.5 text-[14px] leading-relaxed",
                 row.matched ? "text-foreground/80" : "text-muted-foreground",
               )}
             >
@@ -491,7 +491,7 @@ function StudioScoring({
         ))}
       </div>
 
-      <div className="mb-4 text-[10.5px] leading-relaxed text-text-muted">
+      <div className="mb-4 text-[14px] leading-relaxed text-text-muted">
         A track counts as a match at {PROFILE_MATCH_THRESHOLD}.{" "}
         {byClaude
           ? "Claude read the posting against each track's description and wrote the lines above."
@@ -509,7 +509,7 @@ function StudioScoring({
                 </ColorBadge>
               ))
             ) : (
-              <span className="text-[11px] text-muted-foreground">none</span>
+              <span className="text-[12px] text-muted-foreground">none</span>
             )}
           </div>
         </PanelCard>
@@ -523,7 +523,7 @@ function StudioScoring({
                 </ColorBadge>
               ))
             ) : (
-              <span className="text-[11px] text-muted-foreground">none</span>
+              <span className="text-[12px] text-muted-foreground">none</span>
             )}
           </div>
         </PanelCard>
@@ -537,14 +537,14 @@ function StudioReasoning({ job }: { job: Job }) {
   return (
     <div>
       <SectionLabel>Why this scored {score?.fitScore ?? "—"}</SectionLabel>
-      <div className="rounded-[10px] border border-blue-500/20 bg-blue-500/[0.06] p-3.5 text-[12px] leading-[1.55]">
+      <div className="rounded-[10px] border border-blue-500/20 bg-blue-500/[0.06] p-3.5 text-[14px] leading-[1.55]">
         {score?.reasoning || (
           <span className="text-muted-foreground">
             Nothing recorded — this job has not been scored yet.
           </span>
         )}
       </div>
-      <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
+      <p className="mt-3 text-[14px] leading-relaxed text-muted-foreground">
         This is the winning track&apos;s summary. The full per-track working is
         in <span className="font-semibold text-foreground">Scoring</span>, and
         every signal named there is one you can change: they come from the
@@ -574,7 +574,7 @@ function StudioNotes({
         placeholder="Who to mention, what to lead with, the question to ask first, why you passed…"
         className={cx(INPUT, "resize-y leading-relaxed")}
       />
-      <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+      <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">
         Saved as you type, in this browser. Notes are never sent anywhere and are
         not read by the scorer.
       </p>

@@ -32,13 +32,14 @@ import { Button, ColorBadge, PanelCard, SectionLabel, Sheet, cx } from "./ui";
  * the private tree's existence. Points at the product page instead, which is
  * public, already live, and stays correct wherever the extension ends up.
  */
-const EXTENSION_URL = "https://pursuit.bobilabs.dev";
+const EXTENSION_URL =
+  "https://github.com/Bobi-Labs/bobi-pursuit/tree/main/extension";
 
 /* ─────────────────────────────── Pieces ─────────────────────────────── */
 
 function Prose({ children }: { children: ReactNode }) {
   return (
-    <p className="text-[11.5px] leading-relaxed text-muted-foreground">{children}</p>
+    <p className="text-[14px] leading-relaxed text-muted-foreground">{children}</p>
   );
 }
 
@@ -57,12 +58,12 @@ function Step({
 }) {
   return (
     <div className="flex gap-2.5">
-      <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border border-emerald-500/40 bg-emerald-500/10 font-mono text-[10px] font-bold text-emerald-400">
+      <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border border-emerald-500/40 bg-emerald-500/10 font-mono text-[12px] font-bold text-emerald-400">
         {n}
       </span>
       <div className="min-w-0">
-        <div className="text-[12px] font-semibold">{title}</div>
-        <div className="mt-0.5 text-[11.5px] leading-relaxed text-muted-foreground">
+        <div className="text-[14px] font-semibold">{title}</div>
+        <div className="mt-0.5 text-[14px] leading-relaxed text-muted-foreground">
           {children}
         </div>
       </div>
@@ -103,17 +104,18 @@ export function CaptureRoutes({ compact = false }: { compact?: boolean }) {
       {/* ── the front door ── */}
       <PanelCard className="border-emerald-500/25 bg-emerald-500/[0.04]">
         <div className="mb-1.5 flex items-center gap-1.5">
-          <span className="text-[12px] font-bold">Browser extension</span>
+          <span className="text-[14px] font-bold">Browser extension</span>
           <ColorBadge tone="green">best</ColorBadge>
         </div>
         <Prose>
-          A Chrome side panel. Open a posting, click capture, and it reads the
-          description out of the page for you — it knows the layout of the big
-          boards and falls back to your selection anywhere else.
+          A side panel in Chrome, a sidebar in Firefox. Open a posting, click
+          capture, and it reads the description out of the page for you — it
+          knows the layout of the big boards and falls back to your selection
+          anywhere else.
         </Prose>
-        <ol className="mt-2 space-y-1 text-[11px] leading-relaxed text-muted-foreground">
+        <ol className="mt-2 space-y-1 text-[14px] leading-relaxed text-muted-foreground">
           <li>
-            <span className="font-mono text-[10.5px] text-foreground">1</span>{" "}
+            <span className="font-mono text-[12px] text-foreground">1</span>{" "}
             Download the{" "}
             <a
               href={EXTENSION_URL}
@@ -126,15 +128,15 @@ export function CaptureRoutes({ compact = false }: { compact?: boolean }) {
             from the repo.
           </li>
           <li>
-            <span className="font-mono text-[10.5px] text-foreground">2</span>{" "}
-            <span className="font-mono text-[10.5px]">chrome://extensions</span> →
+            <span className="font-mono text-[12px] text-foreground">2</span>{" "}
+            <span className="font-mono text-[12px]">chrome://extensions</span> →
             Developer mode → <Strong>Load unpacked</Strong> → pick that folder.
           </li>
           <li>
-            <span className="font-mono text-[10.5px] text-foreground">3</span> Open
+            <span className="font-mono text-[12px] text-foreground">3</span> Open
             its ⚙ options, choose <Strong>Free app</Strong>, and set the instance
             URL to{" "}
-            <span className="font-mono text-[10.5px] text-foreground">
+            <span className="break-words font-mono text-[12px] text-foreground">
               {origin || "this page's address"}
             </span>
             .
@@ -144,7 +146,7 @@ export function CaptureRoutes({ compact = false }: { compact?: boolean }) {
 
       {/* ── the no-install route ── */}
       <PanelCard>
-        <div className="mb-1.5 text-[12px] font-bold">Bookmarklet</div>
+        <div className="mb-1.5 text-[14px] font-bold">Bookmarklet</div>
         <Prose>
           No install, works in any browser. Select the description on a job page,
           then click the bookmark — the add form opens pre-filled.
@@ -156,11 +158,11 @@ export function CaptureRoutes({ compact = false }: { compact?: boolean }) {
             onClick={(e) => e.preventDefault()}
             draggable
             title="Drag this to your bookmarks bar"
-            className="inline-flex cursor-grab items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2.5 py-1.5 text-[11px] font-semibold text-foreground transition-colors hover:border-primary/40 hover:text-primary"
+            className="inline-flex cursor-grab items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2.5 py-1.5 text-[12px] font-semibold text-foreground transition-colors hover:border-primary/40 hover:text-primary"
           >
             ⬆ Capture to Pursuit
           </a>
-          <div className="mt-1.5 text-[10.5px] leading-snug text-text-muted">
+          <div className="mt-1.5 text-[14px] leading-snug text-text-muted">
             Drag it to your bookmarks bar. Clicking it here does nothing on
             purpose — it only means something on a job page.
           </div>
@@ -169,7 +171,7 @@ export function CaptureRoutes({ compact = false }: { compact?: boolean }) {
 
       {/* ── the always-available route ── */}
       <PanelCard>
-        <div className="mb-1.5 text-[12px] font-bold">By hand</div>
+        <div className="mb-1.5 text-[14px] font-bold">By hand</div>
         <Prose>
           <Strong>+ Capture a job</Strong> in the header. Paste a title and the
           posting text; everything else is optional. It is scored the moment you
@@ -229,10 +231,10 @@ function Body({ dense = false }: { dense?: boolean }) {
         <SectionLabel>What it does not do</SectionLabel>
         <div className="space-y-2">
           <div className="rounded-[10px] border border-amber-500/25 bg-amber-500/[0.06] p-3">
-            <div className="text-[12px] font-semibold text-amber-300">
+            <div className="text-[14px] font-semibold text-amber-300">
               It cannot scrape job boards. That is physics, not a paywall.
             </div>
-            <div className="mt-1 text-[11.5px] leading-relaxed text-muted-foreground">
+            <div className="mt-1 text-[14px] leading-relaxed text-muted-foreground">
               A page running in your browser is not allowed to fetch another
               site’s HTML — the browser blocks it cross-origin — and the boards
               block datacenter IPs, so the usual workaround (a proxy server)
@@ -267,7 +269,7 @@ function Body({ dense = false }: { dense?: boolean }) {
         <div className={cx("grid gap-2.5", dense ? "grid-cols-1" : "md:grid-cols-3")}>
           <PanelCard className="border-emerald-500/30">
             <div className="mb-1 flex items-center gap-1.5">
-              <span className="text-[12px] font-bold">This tier</span>
+              <span className="text-[14px] font-bold">This tier</span>
               <ColorBadge tone="green">free</ColorBadge>
             </div>
             <Prose>
@@ -278,7 +280,7 @@ function Body({ dense = false }: { dense?: boolean }) {
           </PanelCard>
           <PanelCard>
             <div className="mb-1 flex items-center gap-1.5">
-              <span className="text-[12px] font-bold">Your own API key</span>
+              <span className="text-[14px] font-bold">Your own API key</span>
               <ColorBadge tone="purple">optional</ColorBadge>
             </div>
             <Prose>
@@ -291,7 +293,7 @@ function Body({ dense = false }: { dense?: boolean }) {
           </PanelCard>
           <PanelCard>
             <div className="mb-1 flex items-center gap-1.5">
-              <span className="text-[12px] font-bold">Self-hosted</span>
+              <span className="text-[14px] font-bold">Self-hosted</span>
               <ColorBadge tone="blue">server</ColorBadge>
             </div>
             <Prose>
@@ -321,10 +323,10 @@ export function HowItWorksPanel() {
   return (
     <div className="rounded-[10px] border border-border bg-muted/20 p-4">
       <div className="mb-3">
-        <h3 className="text-[13px] font-bold -tracking-[0.01em]">
+        <h3 className="text-base font-bold -tracking-[0.01em]">
           How Bobi·Pursuit works
         </h3>
-        <div className="mt-0.5 text-[11px] text-muted-foreground">
+        <div className="mt-0.5 text-[14px] text-muted-foreground">
           Ninety seconds, and it is all true of the free tier you are using right
           now.
         </div>
@@ -345,7 +347,7 @@ export function HowItWorksSheet({ onClose }: { onClose: () => void }) {
       onClose={onClose}
       footer={
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[11px] text-muted-foreground">
+          <span className="text-[14px] text-muted-foreground">
             No account, no server, no upload.
           </span>
           <Button size="md" variant="primary" onClick={onClose}>

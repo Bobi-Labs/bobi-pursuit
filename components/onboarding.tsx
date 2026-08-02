@@ -37,7 +37,7 @@ import {
 } from "@/lib/types";
 
 import { CaptureRoutes } from "./how-it-works";
-import { Button, ColorBadge, Field, INPUT, PanelCard, cx } from "./ui";
+import { Button, ColorBadge, Field, HintCard, INPUT, PanelCard, cx } from "./ui";
 
 interface Picked {
   /** Which preset it came from — the picker toggles on this, not on the id. */
@@ -122,13 +122,13 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         <div aria-hidden className="banner-grid absolute inset-0 opacity-50" />
         <div className="relative mx-auto flex max-w-3xl flex-wrap items-end justify-between gap-3">
           <div>
-            <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-400/80">
+            <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-400/80">
               Bobi Labs · local-first
             </div>
             <h1 className="text-2xl font-bold -tracking-[0.02em]">
               Bobi<span className="text-emerald-400">·</span>Pursuit
             </h1>
-            <p className="mt-1 max-w-lg text-[11.5px] leading-relaxed text-muted-foreground">
+            <p className="mt-1 max-w-lg text-[14px] leading-relaxed text-muted-foreground">
               Three short steps and you have a job pipeline that scores what you
               capture against what you actually want. No account, no server,
               nothing uploaded — it all stays in this browser.
@@ -158,7 +158,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               type="button"
               onClick={() => setStep(s.n)}
               className={cx(
-                "inline-flex items-center gap-2 text-[11.5px] font-medium transition-colors",
+                "inline-flex items-center gap-2 text-[12px] font-medium transition-colors",
                 step === s.n
                   ? "text-foreground"
                   : "text-muted-foreground hover:text-foreground",
@@ -166,7 +166,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
             >
               <span
                 className={cx(
-                  "grid h-5 w-5 place-items-center rounded-full border font-mono text-[10px] font-bold",
+                  "grid h-5 w-5 place-items-center rounded-full border font-mono text-[12px] font-bold",
                   step === s.n
                     ? "border-primary bg-primary/15 text-primary"
                     : step > s.n
@@ -256,18 +256,21 @@ function StepTracks({
 }) {
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-[16px] font-bold -tracking-[0.01em]">
-          What are you looking for?
-        </h2>
-        <p className="mt-1 text-[11.5px] leading-relaxed text-muted-foreground">
-          Pick one or more <span className="font-semibold text-foreground">tracks</span>
-          . Each is scored separately, because a posting that is a 90 for
-          contract work is a 20 for a salaried role, and one averaged number
-          would hide exactly the thing you needed to know. Up to{" "}
-          {MAX_PROFILES}; you can edit or replace them any time.
-        </p>
-      </div>
+      <h2 className="text-[16px] font-bold -tracking-[0.01em]">
+        What are you looking for?
+      </h2>
+
+      {/* The argument for scoring tracks apart from each other used to be a
+          paragraph stacked between the heading and the grid, which made it the
+          first thing in the way and therefore the first thing skipped. Same
+          argument, cut to the sentence that carries it, sitting where the eye
+          already goes on the way to the presets instead of in front of them. */}
+      <HintCard title="Separate scores">
+        Pick up to {MAX_PROFILES}{" "}
+        <span className="font-semibold">tracks</span> and edit them any time.
+        Each is scored on its own: a posting that is a 90 for contract work is a
+        20 for a salaried role, and one averaged number would hide exactly that.
+      </HintCard>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {PROFILE_PRESETS.map((preset) => {
@@ -290,16 +293,16 @@ function StepTracks({
               )}
             >
               <div className="flex items-start justify-between gap-2">
-                <span className="text-[12.5px] font-semibold leading-snug">
+                <span className="text-[14px] font-semibold leading-snug">
                   {preset.label}
                 </span>
                 {/* The tick is *absent* when unselected, not merely invisible —
                     a transparent "✓" is still read out by a screen reader, and
-                    eight cards all announcing "✓" is worse than no tick at all. */}
+                    every card announcing "✓" is worse than no tick at all. */}
                 <span
                   aria-hidden
                   className={cx(
-                    "mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded border text-[9px] font-bold",
+                    "mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded border text-[11px] font-bold",
                     on
                       ? "border-primary bg-primary text-primary-foreground"
                       : "border-border",
@@ -308,7 +311,7 @@ function StepTracks({
                   {on ? "✓" : ""}
                 </span>
               </div>
-              <div className="mt-1 text-[11px] text-muted-foreground">
+              <div className="mt-1 text-[14px] text-muted-foreground">
                 {preset.blurb}
               </div>
             </button>
@@ -317,7 +320,7 @@ function StepTracks({
       </div>
 
       {picked.length === 0 ? (
-        <p className="text-[11px] leading-relaxed text-text-muted">
+        <p className="text-[14px] leading-relaxed text-text-muted">
           Pick nothing and you get one broad software-engineering track to start
           from — fine for a look around, worth replacing before you trust a
           number.
@@ -333,7 +336,7 @@ function StepTracks({
                 <ColorBadge tone={entry.profile.tone}>
                   {entry.profile.short || "track"}
                 </ColorBadge>
-                <span className="text-[12px] font-semibold">
+                <span className="text-[14px] font-semibold">
                   {entry.profile.name}
                 </span>
               </div>
@@ -400,7 +403,7 @@ function StepCapture() {
         <h2 className="text-[16px] font-bold -tracking-[0.01em]">
           How jobs get in
         </h2>
-        <p className="mt-1 text-[11.5px] leading-relaxed text-muted-foreground">
+        <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">
           By capture — a click on a posting you are already reading. The
           extension is the front door; the bookmarklet works everywhere; the add
           form is always there. Whichever you use, the job is scored on the way
@@ -408,18 +411,16 @@ function StepCapture() {
         </p>
       </div>
 
-      <div className="rounded-[10px] border border-amber-500/25 bg-amber-500/[0.06] p-3">
-        <div className="text-[12px] font-semibold text-amber-300">
-          There are no scrapers in this tier, and that is not a paywall.
-        </div>
-        <p className="mt-1 text-[11.5px] leading-relaxed text-muted-foreground">
-          A page running in your browser cannot fetch a job board&apos;s HTML —
-          the browser blocks it cross-origin — and the boards block datacenter
-          IPs, so the usual workaround needs a server this app deliberately does
-          not have. Capture is the honest version of the same idea: you decide
-          what comes in, and nothing reads a page until you click.
-        </p>
-      </div>
+      {/* This step's one hint, and it goes on the missing feature rather than
+          on the intro above: "no scrapers" is the line a reader assumes is a
+          paywall, and only the technical reason answers that. It sits directly
+          on top of the capture routes because it is the argument for them. */}
+      <HintCard title="Not a paywall">
+        There are no scrapers in this tier. A page running in your browser
+        cannot fetch a job board&apos;s HTML, and the boards block datacenter
+        IPs, so scraping needs a server this app deliberately does not have.
+        Capture is the honest version: nothing reads a page until you click.
+      </HintCard>
 
       <CaptureRoutes />
     </div>
@@ -447,7 +448,7 @@ function StepKey({
         <h2 className="text-[16px] font-bold -tracking-[0.01em]">
           Want it to actually read the jobs?
         </h2>
-        <p className="mt-1 text-[11.5px] leading-relaxed text-muted-foreground">
+        <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">
           Optional, and skipping it costs you nothing — the app is fully usable
           without a key. Here is the honest difference.
         </p>
@@ -456,10 +457,10 @@ function StepKey({
       <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
         <PanelCard>
           <div className="mb-1 flex items-center gap-1.5">
-            <span className="text-[12px] font-bold">Without a key</span>
+            <span className="text-[14px] font-bold">Without a key</span>
             <ColorBadge tone="green">default</ColorBadge>
           </div>
-          <p className="text-[11.5px] leading-relaxed text-muted-foreground">
+          <p className="text-[14px] leading-relaxed text-muted-foreground">
             We match your <span className="font-semibold text-foreground">keywords</span>{" "}
             — literally, instantly, offline, and with every signal that moved the
             number written out so you can argue with it. It is genuinely useful
@@ -469,10 +470,10 @@ function StepKey({
         </PanelCard>
         <PanelCard className="border-violet-500/30 bg-violet-500/[0.05]">
           <div className="mb-1 flex items-center gap-1.5">
-            <span className="text-[12px] font-bold">With your own key</span>
+            <span className="text-[14px] font-bold">With your own key</span>
             <ColorBadge tone="purple">better</ColorBadge>
           </div>
-          <p className="text-[11.5px] leading-relaxed text-muted-foreground">
+          <p className="text-[14px] leading-relaxed text-muted-foreground">
             Claude reads the whole posting against the{" "}
             <span className="font-semibold text-foreground">description</span> you
             just wrote and produces its own reasoning for each track. Under $0.01
@@ -505,7 +506,7 @@ function StepKey({
           href="https://console.anthropic.com/settings/keys"
           target="_blank"
           rel="noreferrer noopener"
-          className="text-[11px] text-primary transition-colors hover:underline"
+          className="text-[14px] text-primary transition-colors hover:underline"
         >
           Get a key at console.anthropic.com ↗
         </a>
@@ -514,7 +515,7 @@ function StepKey({
       {notice ? (
         <div
           className={cx(
-            "rounded-md border px-2.5 py-2 text-[11px] leading-snug",
+            "rounded-md border px-2.5 py-2 text-[14px] leading-snug",
             notice.ok
               ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
               : "border-red-500/30 bg-red-500/10 text-red-300",

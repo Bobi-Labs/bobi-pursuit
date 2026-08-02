@@ -179,7 +179,7 @@ export function ColorBadge({
     <span
       title={title}
       className={cx(
-        "inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+        "inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[12px] font-semibold",
         TONE_BADGE[tone],
         className,
       )}
@@ -205,7 +205,7 @@ export function ScoreChip({
   return (
     <span
       className={cx(
-        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 font-mono text-[11px] font-bold",
+        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 font-mono text-[12px] font-bold",
         TONE_BADGE[tone],
       )}
     >
@@ -282,13 +282,13 @@ export function KpiCard({
           : "text-muted-foreground";
   const body = (
     <>
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         {label}
       </div>
       <div className="mt-1 font-mono text-[26px] font-extrabold leading-none -tracking-[0.02em]">
         {value}
       </div>
-      {delta && <div className={cx("mt-1.5 text-[10px]", c)}>{delta}</div>}
+      {delta && <div className={cx("mt-1.5 text-[12px]", c)}>{delta}</div>}
     </>
   );
   const shell = "rounded-[10px] border border-border bg-card/55 p-3.5";
@@ -337,7 +337,7 @@ export function PanelHeader({
       <div>
         <h2 className="text-base font-bold -tracking-[0.01em]">{title}</h2>
         {sub && (
-          <div className="mt-1 max-w-[720px] text-[11px] text-muted-foreground">
+          <div className="mt-1 max-w-[720px] text-[14px] text-muted-foreground">
             {sub}
           </div>
         )}
@@ -357,10 +357,69 @@ export function SectionLabel({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * The one explanation a surface is allowed to make.
+ *
+ * Explanatory prose used to sit stacked above the card it described, which put a
+ * wall of text between the reader and the UI and got skipped anyway. A `HintCard`
+ * is that paragraph lifted out into a floating aside the caller parks beside the
+ * main card. The eye lands on it because it is warm and faintly lit, not because
+ * it is blocking the way — so the copy inside should be cut to the point rather
+ * than moved across intact.
+ *
+ * Amber, not red. Red already means "this is broken" everywhere else here (see
+ * `TONE_BADGE`), and a first-run explanation is not a failure. Amber is the only
+ * warm note on a screen of emerald and navy, which is exactly why it pulls the
+ * eye without raising an alarm.
+ *
+ * **One per surface.** That glow is a scarce resource and it works only while it
+ * is the single warm thing in view: a second card halves it, a third spends it
+ * entirely. If everything glows, nothing does. When a surface seems to need a
+ * second hint, the fix is almost always shorter copy in the first one, or a
+ * `Field` hint sitting next to the control it actually concerns.
+ *
+ * Deliberately dumb — no icon, no dismiss, no opinion about position. The caller
+ * owns layout (grid column, width, `sticky top-4`) through `className`, because
+ * "left of the card" and "right of the card" are the same component.
+ */
+export function HintCard({
+  title,
+  className,
+  children,
+}: {
+  /** Two words, ideally. Rendered as the same micro-label as `SectionLabel`. */
+  title?: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className={cx(
+        // The glow mirrors the shape of `glow-primary` in globals.css (tight,
+        // negative spread) in amber. A wide or opaque shadow turns this into a
+        // highlighter stripe, and the card stops reading as part of the app.
+        "rounded-[10px] border border-l-[3px] border-amber-500/25 border-l-amber-400/80 bg-elevated p-3.5 shadow-[0_0_18px_-8px_rgba(245,158,11,0.55)]",
+        className,
+      )}
+    >
+      {title ? (
+        <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-400">
+          {title}
+        </div>
+      ) : null}
+      {/* Body sits at foreground brightness rather than `--text-muted`: this is
+          the copy the card exists to get read, and dimming it would spend the
+          border and the glow on text the eye then slides off. 14px is the prose
+          floor from the legibility pass. */}
+      <div className="text-[14px] leading-snug text-foreground">{children}</div>
+    </div>
+  );
+}
+
 /** The one-line "nothing here yet" a panel shows instead of an empty grid. */
 export function EmptyMini({ text }: { text: string }) {
   return (
-    <div className="py-10 text-center text-[11.5px] text-muted-foreground">
+    <div className="py-10 text-center text-[14px] text-muted-foreground">
       {text}
     </div>
   );
@@ -382,14 +441,14 @@ export function KanbanCol({
   return (
     <div className="flex min-h-[480px] flex-col rounded-[10px] border border-border bg-muted/30">
       <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
-        <span className="text-[11.5px] font-bold">{label}</span>
-        <span className="rounded-full border border-border bg-card px-1.5 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground">
+        <span className="text-[14px] font-bold">{label}</span>
+        <span className="rounded-full border border-border bg-card px-1.5 py-0.5 font-mono text-[12px] font-semibold text-muted-foreground">
           {count}
         </span>
       </div>
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-2.5">
         {count === 0 ? (
-          <div className="py-6 text-center text-[10.5px] text-muted-foreground">
+          <div className="py-6 text-center text-[14px] text-muted-foreground">
             {hint ?? "—"}
           </div>
         ) : (
@@ -420,7 +479,7 @@ export function Chip({
       title={title}
       aria-pressed={on}
       className={cx(
-        "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
+        "rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors",
         on
           ? "border-emerald-500/40 bg-emerald-500/12 text-emerald-400"
           : "border-border bg-muted/40 text-muted-foreground hover:text-foreground",
@@ -448,7 +507,7 @@ export function SubTabBtn({
       type="button"
       onClick={onClick}
       className={cx(
-        "-mb-px inline-flex items-center gap-1.5 border-b-2 px-3.5 py-2 text-[12px] font-medium transition-colors",
+        "-mb-px inline-flex items-center gap-1.5 border-b-2 px-3.5 py-2 text-[14px] font-medium transition-colors",
         active
           ? "border-primary text-foreground"
           : "border-transparent text-muted-foreground hover:text-foreground",
@@ -458,7 +517,7 @@ export function SubTabBtn({
       {count != null && (
         <span
           className={cx(
-            "rounded-full border px-1.5 py-px font-mono text-[10px] font-semibold",
+            "rounded-full border px-1.5 py-px font-mono text-[12px] font-semibold",
             active
               ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
               : "border-border bg-card text-muted-foreground",
@@ -489,7 +548,7 @@ export function ViewToggle<T extends string>({
           type="button"
           onClick={() => onChange(x)}
           className={cx(
-            "rounded px-2.5 py-1 text-[11px] font-medium capitalize transition-colors",
+            "rounded px-2.5 py-1 text-[12px] font-medium capitalize transition-colors",
             value === x
               ? "bg-card text-foreground"
               : "text-muted-foreground hover:text-foreground",
@@ -550,7 +609,7 @@ export function FolderTabs<K extends string>({
             onClick={() => onChange(t.key)}
             aria-current={isActive ? "page" : undefined}
             className={cx(
-              "relative -mb-px inline-flex items-center gap-2 whitespace-nowrap rounded-t-[10px] border border-border px-4 py-3 text-[13px] font-medium transition-colors",
+              "relative -mb-px inline-flex items-center gap-2 whitespace-nowrap rounded-t-[10px] border border-border px-4 py-3 text-[14px] font-medium transition-colors",
               isActive
                 ? "z-20 border-b-card bg-card pb-[14px] text-foreground"
                 : "bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground",
@@ -563,7 +622,7 @@ export function FolderTabs<K extends string>({
             {count != null && (
               <span
                 className={cx(
-                  "rounded-full border px-1.5 py-0.5 font-mono text-[10px] font-semibold",
+                  "rounded-full border px-1.5 py-0.5 font-mono text-[12px] font-semibold",
                   isActive
                     ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
                     : "border-border bg-card text-muted-foreground",
@@ -628,9 +687,9 @@ const BTN_VARIANT: Record<ButtonVariant, string> = {
 };
 
 const BTN_SIZE: Record<ButtonSize, string> = {
-  xs: "px-2 py-1 text-[10px]",
-  sm: "px-2.5 py-1.5 text-[11px]",
-  md: "px-3 py-2 text-[12px]",
+  xs: "px-2 py-1 text-[12px]",
+  sm: "px-2.5 py-1.5 text-[12px]",
+  md: "px-3 py-2 text-[14px]",
 };
 
 export function Button({
@@ -662,7 +721,7 @@ export function Button({
 /* ───────────────────────────────── Forms ──────────────────────────────── */
 
 export const INPUT =
-  "w-full rounded-md border border-border bg-muted/50 px-2.5 py-1.5 text-[12px] text-foreground placeholder:text-text-muted outline-none transition-colors focus:border-primary/50 focus:bg-muted";
+  "w-full rounded-md border border-border bg-muted/50 px-2.5 py-1.5 text-[14px] text-foreground placeholder:text-text-muted outline-none transition-colors focus:border-primary/50 focus:bg-muted";
 
 export function Field({
   label,
@@ -675,12 +734,12 @@ export function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         {label}
       </span>
       {children}
       {hint ? (
-        <span className="mt-1 block text-[10.5px] leading-snug text-muted-foreground">
+        <span className="mt-1 block text-[14px] leading-snug text-muted-foreground">
           {hint}
         </span>
       ) : null}
@@ -754,7 +813,7 @@ export function Sheet({
           <div className="min-w-0">
             <h2 className="text-[14px] font-bold -tracking-[0.01em]">{title}</h2>
             {subtitle ? (
-              <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+              <p className="mt-0.5 text-[14px] leading-snug text-muted-foreground">
                 {subtitle}
               </p>
             ) : null}

@@ -118,7 +118,7 @@ export function OverviewPanel({
         <PanelCard className="mb-5">
           <div className="py-8 text-center">
             <div className="text-[14px] font-bold">Nothing captured yet</div>
-            <p className="mx-auto mt-1.5 max-w-md text-[11.5px] leading-relaxed text-muted-foreground">
+            <p className="mx-auto mt-1.5 max-w-md text-[14px] leading-relaxed text-muted-foreground">
               Jobs get in here by capture, not by crawl. Grab one from a posting
               you are already looking at — or load the sample pipeline and see
               what a scored board looks like before committing to anything.
@@ -138,11 +138,11 @@ export function OverviewPanel({
           {/* ── the queue ── */}
           <PanelCard>
             <div className="mb-3 flex items-center justify-between gap-3">
-              <div className="text-[12px] font-bold">Top to review</div>
+              <div className="text-[14px] font-bold">Top to review</div>
               <button
                 type="button"
                 onClick={() => onGoPipeline("triage")}
-                className="text-[11px] text-primary hover:underline"
+                className="text-[12px] text-primary hover:underline"
               >
                 Open Pipeline →
               </button>
@@ -159,10 +159,10 @@ export function OverviewPanel({
                 >
                   <div className="flex justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="truncate text-[12.5px] font-semibold">
+                      <div className="truncate text-[14px] font-semibold">
                         {job.title}
                       </div>
-                      <div className="mt-0.5 truncate text-[10.5px] text-muted-foreground">
+                      <div className="mt-0.5 truncate text-[12px] text-muted-foreground">
                         {[job.company, job.source].filter(Boolean).join(" · ") ||
                           "no company"}{" "}
                         · {job.budgetHint || "budget undisclosed"}
@@ -181,7 +181,7 @@ export function OverviewPanel({
                         {humanFlag(flag)}
                       </ColorBadge>
                     ))}
-                    <span className="ml-auto font-mono text-[10px] text-text-muted">
+                    <span className="ml-auto font-mono text-[12px] text-text-muted">
                       {relAge(job.createdAt)}
                     </span>
                   </div>
@@ -193,11 +193,11 @@ export function OverviewPanel({
           {/* ── where the fits live ── */}
           <PanelCard>
             <div className="mb-3 flex items-center justify-between gap-3">
-              <div className="text-[12px] font-bold">Your tracks</div>
+              <div className="text-[14px] font-bold">Your tracks</div>
               <button
                 type="button"
                 onClick={onOpenSettings}
-                className="text-[11px] text-primary hover:underline"
+                className="text-[12px] text-primary hover:underline"
               >
                 Edit tracks →
               </button>
@@ -215,11 +215,11 @@ export function OverviewPanel({
                         <ColorBadge tone={track.tone} title={track.name}>
                           {track.short}
                         </ColorBadge>
-                        <span className="truncate text-[11.5px] font-medium">
+                        <span className="truncate text-[14px] font-medium">
                           {track.name}
                         </span>
                       </span>
-                      <span className="shrink-0 font-mono text-[11px] font-bold">
+                      <span className="shrink-0 font-mono text-[12px] font-bold">
                         {track.matched}
                       </span>
                     </div>
@@ -229,14 +229,14 @@ export function OverviewPanel({
                         style={{ width: `${Math.max(pct, track.matched > 0 ? 6 : 0)}%` }}
                       />
                     </div>
-                    <div className="mt-1 font-mono text-[10px] text-text-muted">
+                    <div className="mt-1 font-mono text-[12px] text-text-muted">
                       avg {track.average} · best {track.best}
                     </div>
                   </div>
                 );
               })}
             </div>
-            <p className="mt-3.5 border-t border-border pt-3 text-[10.5px] leading-relaxed text-muted-foreground">
+            <p className="mt-3.5 border-t border-border pt-3 text-[14px] leading-relaxed text-muted-foreground">
               A job counts for a track at {PROFILE_MATCH_THRESHOLD}+, and one job
               can count for several — the question is what share of what you
               capture is each kind of work, not which bucket won.

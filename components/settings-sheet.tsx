@@ -55,6 +55,7 @@ import {
   Button,
   ColorBadge,
   Field,
+  HintCard,
   INPUT,
   SectionLabel,
   Sheet,
@@ -322,7 +323,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
       onClose={onClose}
       footer={
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[11px] text-muted-foreground">
+          <span className="text-[12px] text-muted-foreground">
             {status.adapterLabel}
           </span>
           <Button size="md" variant="primary" onClick={onClose}>
@@ -338,7 +339,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
             role="status"
             aria-live="polite"
             className={cx(
-              "sticky top-0 z-10 rounded-md border px-2.5 py-2 text-[11px] leading-snug",
+              "sticky top-0 z-10 rounded-md border px-2.5 py-2 text-[14px] leading-snug",
               NOTICE_CLASS[notice.tone] ?? NOTICE_CLASS.muted,
             )}
           >
@@ -350,17 +351,21 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
         <section className="space-y-2.5">
           <div className="flex items-center justify-between gap-2">
             <SectionLabel>What you&apos;re looking for</SectionLabel>
-            <span className="mb-2 font-mono text-[10px] text-text-muted">
+            <span className="mb-2 font-mono text-[12px] text-text-muted">
               {settings.profiles.length}/{MAX_PROFILES}
             </span>
           </div>
-          <p className="text-[11px] leading-relaxed text-muted-foreground">
-            A <span className="font-semibold text-foreground">track</span> is one
-            kind of work you would actually take. Every job is scored against each
-            of them separately, because a posting that is a 90 for contract work
-            is a 20 for a salaried role and one averaged number would hide that.
-            Editing a track rescores the board immediately.
-          </p>
+          {/* The one hint this half of the sheet gets. Nothing below it can be
+              read by someone who has not understood the word "track", so this is
+              the paragraph worth the glow; the explanations under You and AI
+              scoring stay grey on purpose, because a second warm card in the
+              same view would halve this one (see HintCard). */}
+          <HintCard title="What a track is">
+            One kind of work you would actually take. Every job is scored against
+            each track separately, because a posting worth 90 for contract work
+            can be a 20 for a salaried role and one averaged number would hide
+            that. Editing a track rescores the board immediately.
+          </HintCard>
 
           <div className="space-y-2">
             {settings.profiles.map((profile, index) => (
@@ -398,7 +403,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
             </Button>
           </div>
           {atCeiling ? (
-            <p className="text-[10.5px] text-text-muted">
+            <p className="text-[14px] text-text-muted">
               Five is the ceiling. Past that the tracks stop discriminating and
               everything matches something.
             </p>
@@ -477,12 +482,12 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
         <section className="space-y-3 border-t border-border pt-5">
           <div className="flex items-center gap-2">
             <SectionLabel>AI scoring</SectionLabel>
-            <span className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
+            <span className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
               optional
             </span>
           </div>
 
-          <p className="text-[11px] leading-relaxed text-muted-foreground">
+          <p className="text-[14px] leading-relaxed text-muted-foreground">
             With no key, scoring matches your{" "}
             <span className="font-semibold text-foreground">keywords</span>:
             instant, free, fully transparent — and literal, because it matches
@@ -525,7 +530,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
               href="https://console.anthropic.com/settings/keys"
               target="_blank"
               rel="noreferrer noopener"
-              className="text-[11px] text-primary transition-colors hover:underline"
+              className="text-[12px] text-primary transition-colors hover:underline"
             >
               Get a key at console.anthropic.com ↗
             </a>
@@ -536,10 +541,10 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
               {bulk ? (
                 <>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11.5px] font-semibold">
+                    <span className="text-[14px] font-semibold">
                       Scoring with Claude…
                     </span>
-                    <span className="font-mono text-[11px] text-muted-foreground">
+                    <span className="font-mono text-[12px] text-muted-foreground">
                       {bulk.done} / {bulk.total}
                     </span>
                   </div>
@@ -552,7 +557,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
                     />
                   </div>
                   <div className="mt-2 flex items-center justify-between gap-2">
-                    <span className="text-[10.5px] text-muted-foreground">
+                    <span className="text-[14px] text-muted-foreground">
                       {bulk.failed > 0 ? `${bulk.failed} failed · ` : ""}
                       Jobs already scored are kept if you stop.
                     </span>
@@ -564,7 +569,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
               ) : (
                 <>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11.5px] font-semibold">
+                    <span className="text-[14px] font-semibold">
                       Score all with Claude
                     </span>
                     {llmScored > 0 ? (
@@ -574,7 +579,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
                       </ColorBadge>
                     ) : null}
                   </div>
-                  <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                  <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">
                     {pendingLlm === 0 ? (
                       "Every job already has a Claude score. Nothing to do, nothing to spend."
                     ) : (
@@ -612,11 +617,16 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
         {/* ── data ── */}
         <section className="space-y-3 border-t border-border pt-5">
           <SectionLabel>Your data</SectionLabel>
-          <p className="text-[11px] leading-relaxed text-muted-foreground">
-            Everything lives in this browser. There is no account and no server,
-            which also means no backup — an export is the backup. Clearing your
-            browser data clears this.
-          </p>
+          {/* The second and last hint. Local-first is a promise and a liability
+              in the same sentence, and the liability half is the one people
+              discover after the board is already gone — so it is stated where
+              the export button can still do something about it. */}
+          <HintCard title="No server, no backup">
+            Everything stays in this browser: jobs, tracks, and your key. There
+            is no account and no server, so nothing is backed up anywhere else.
+            An export is the backup, and clearing your browser data clears all
+            of it.
+          </HintCard>
 
           <div className="flex flex-wrap gap-1.5">
             <Button size="md" onClick={exportJson}>
@@ -664,7 +674,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
               with a rules score is a downgrade the user paid for, so it is never
               what the plain "rescore" button does. */}
           {llmScored > 0 ? (
-            <p className="text-[10.5px] leading-relaxed text-text-muted">
+            <p className="text-[14px] leading-relaxed text-text-muted">
               Rescoring skips the {llmScored} job{llmScored === 1 ? "" : "s"}{" "}
               Claude scored — a rules pass would be a downgrade.{" "}
               <button
@@ -704,7 +714,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
                   Also save to a file…
                 </Button>
               )}
-              <span className="text-[10.5px] text-text-muted">
+              <span className="text-[14px] text-text-muted">
                 Optional mirror. Browsers forget file permission on reload, so
                 this lasts one session.
               </span>
@@ -717,7 +727,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
           <SectionLabel>Danger zone</SectionLabel>
           {confirmClear ? (
             <div className="rounded-[10px] border border-red-500/30 bg-red-500/[0.07] p-3">
-              <p className="text-[11.5px] leading-relaxed text-red-200">
+              <p className="text-[14px] leading-relaxed text-red-200">
                 This deletes every job and resets your tracks, here and in this
                 browser&apos;s storage. There is no undo and no copy on a server.
                 Export first if you might want it back.
@@ -790,14 +800,14 @@ function TrackEditor({
           className="flex min-w-0 flex-1 items-center gap-2 text-left"
           aria-expanded={open}
         >
-          <span className="font-mono text-[10px] text-text-muted">
+          <span className="font-mono text-[12px] text-text-muted">
             {open ? "▾" : "▸"}
           </span>
           <ColorBadge tone={profile.tone}>{profile.short}</ColorBadge>
-          <span className="min-w-0 flex-1 truncate text-[12px] font-semibold">
+          <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">
             {profile.name}
           </span>
-          <span className="shrink-0 font-mono text-[10px] text-text-muted">
+          <span className="shrink-0 font-mono text-[12px] text-text-muted">
             {profile.keywords.length} kw
           </span>
         </button>

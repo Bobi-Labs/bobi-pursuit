@@ -40,6 +40,8 @@ import { JobStudioPanel } from "./job-detail";
 import { Onboarding } from "./onboarding";
 import { OverviewPanel } from "./overview-panel";
 import { SettingsSheet } from "./settings-sheet";
+import { Tour, shouldShowTour } from "./tour";
+import { FEEDBACK_URL } from "@/lib/app-config";
 import {
   Button,
   Chip,
@@ -104,6 +106,7 @@ export default function PipelineApp() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [howOpen, setHowOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
   /**
    * First run is decided **once**, the moment storage answers, and never again.
    *
@@ -277,13 +280,13 @@ export default function PipelineApp() {
         <div aria-hidden className="banner-grid absolute inset-0 opacity-50" />
         <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-400/80">
+            <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-400/80">
               Bobi Labs · local-first
             </div>
             <h1 className="text-2xl font-bold -tracking-[0.02em]">
               Bobi<span className="text-emerald-400">·</span>Pursuit
             </h1>
-            <div className="mt-1 text-[11.5px] text-muted-foreground">
+            <div className="mt-1 text-[14px] text-muted-foreground">
               {doc.jobs.length} captured · {triageCount} to review ·{" "}
               {promotedCount} promoted · no accounts · no server of ours
             </div>
@@ -298,6 +301,19 @@ export default function PipelineApp() {
             <Button size="md" onClick={() => setSettingsOpen(true)}>
               Settings
             </Button>
+            {/* A link, not a POST: this app has no server and its CSP would
+                refuse the request anyway. Renders only once the intake page
+                exists, so we never ship a button that 404s. */}
+            {FEEDBACK_URL && (
+              <a
+                href={FEEDBACK_URL}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="inline-flex items-center rounded-md border border-border bg-card px-3 py-1.5 text-[14px] font-semibold text-foreground transition-colors hover:border-primary/40 hover:text-primary"
+              >
+                Feedback
+              </a>
+            )}
           </div>
         </div>
       </header>
@@ -377,7 +393,7 @@ export default function PipelineApp() {
       </div>
 
       {/* ═══ status line — a save failure is never swallowed ═══ */}
-      <footer className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border px-4 py-1.5 text-[10.5px] text-muted-foreground sm:px-6">
+      <footer className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border px-4 py-1.5 text-[12px] text-muted-foreground sm:px-6">
         <span className="inline-flex items-center gap-1.5">
           <Dot
             tone={status.error ? "red" : status.saving ? "amber" : "green"}
@@ -393,11 +409,11 @@ export default function PipelineApp() {
               : "nothing saved yet"}
         </span>
         {status.error ? (
-          <span className="min-w-0 flex-1 font-medium text-red-400">
+          <span className="min-w-0 flex-1 text-[14px] font-medium text-red-400">
             {status.error}
           </span>
         ) : (
-          <span className="ml-auto hidden sm:block">
+          <span className="ml-auto hidden text-[14px] sm:block">
             No account, no server — everything stays in this browser.
           </span>
         )}
@@ -419,8 +435,22 @@ export default function PipelineApp() {
       {settingsOpen ? <SettingsSheet onClose={() => setSettingsOpen(false)} /> : null}
       {howOpen ? <HowItWorksSheet onClose={() => setHowOpen(false)} /> : null}
       {onboardingOpen ? (
-        <Onboarding onDone={() => setOnboardingOpen(false)} />
+        <Onboarding
+          onDone={() => {
+            setOnboardingOpen(false);
+            // Hand straight over to the tour rather than dropping someone on a
+            // board they have never seen. Chained, not concurrent: both are
+            // z-50 overlays and a fresh browser satisfies the trigger for each,
+            // so opening them independently would stack them.
+            if (shouldShowTour()) setTourOpen(true);
+          }}
+        />
       ) : null}
+
+      {/* Returning users who never saw the tour get it on their next visit;
+          `shouldShowTour` is read in an effect because this is a static export
+          that still prerenders, and localStorage does not exist there. */}
+      <Tour open={tourOpen} onClose={() => setTourOpen(false)} />
     </div>
   );
 }
@@ -519,7 +549,9 @@ function PipelinePanel({
         <input
           value={query}
           onChange={(e) => onQuery(e.target.value)}
-          placeholder="Search title, company, description, notes…"
+          // Shortened when the input went 12px -> 14px: the old
+          // "Search title, company, description, notes…" clipped mid-word.
+          placeholder="Search jobs…"
           className={cx(INPUT, "w-full sm:w-64")}
         />
 
@@ -541,7 +573,7 @@ function PipelinePanel({
 
         <span className="hidden h-4 w-px bg-border sm:block" />
 
-        <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+        <label className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
           min fit
           <input
             type="range"
@@ -552,7 +584,7 @@ function PipelinePanel({
             onChange={(e) => onMinFit(Number(e.target.value))}
             className="h-1 w-24 accent-emerald-500"
           />
-          <span className="w-5 font-mono text-[11px] text-foreground">{minFit}</span>
+          <span className="w-6 font-mono text-[12px] text-foreground">{minFit}</span>
         </label>
 
         {filtersActive ? (
@@ -598,7 +630,7 @@ function PipelinePanel({
           </div>
         )
       ) : grouped.ignored.length === 0 ? (
-        <div className="py-16 text-center text-[11.5px] text-muted-foreground">
+        <div className="py-16 text-center text-[14px] text-muted-foreground">
           Nothing skipped. Anything you Skip lands here — kept, not deleted, and
           one click from going back into Triage.
         </div>
@@ -657,7 +689,7 @@ function EmptyBoard({
   return (
     <div className="py-16 text-center">
       <div className="text-[14px] font-bold">The board is empty</div>
-      <p className="mx-auto mt-1.5 max-w-md text-[11.5px] leading-relaxed text-muted-foreground">
+      <p className="mx-auto mt-1.5 max-w-md text-[14px] leading-relaxed text-muted-foreground">
         Jobs arrive by capture — the extension, the bookmarklet, or the add form.
         Load the sample pipeline if you would rather see a full board before
         committing to anything.
@@ -687,10 +719,10 @@ function NoMatches({
 }) {
   return (
     <div className="py-16 text-center">
-      <div className="text-[13px] font-semibold">
+      <div className="text-[14px] font-semibold">
         {filtersActive ? "No jobs match these filters" : "Nothing in the working board"}
       </div>
-      <p className="mt-1.5 text-[11.5px] text-muted-foreground">
+      <p className="mt-1.5 text-[14px] text-muted-foreground">
         {filtersActive
           ? "Loosen the search, the track, or the minimum fit."
           : "Everything you have captured has been skipped."}
@@ -724,9 +756,9 @@ function JobTable({
 }) {
   return (
     <div className="overflow-x-auto rounded-[10px] border border-border">
-      <table className="w-full min-w-[640px] text-[12px]">
+      <table className="w-full min-w-[640px] text-[14px]">
         <thead>
-          <tr className="text-[10px] uppercase tracking-wider text-muted-foreground">
+          <tr className="text-[11px] uppercase tracking-wider text-muted-foreground">
             <th className="border-b border-border px-3 py-2 text-left font-semibold">
               Job
             </th>
@@ -761,7 +793,7 @@ function JobTable({
               >
                 <td className="border-b border-border px-3 py-2.5">
                   <div className="line-clamp-1 font-semibold">{job.title}</div>
-                  <div className="mt-0.5 truncate text-[10.5px] text-muted-foreground">
+                  <div className="mt-0.5 truncate text-[12px] text-muted-foreground">
                     {[job.company, job.source].filter(Boolean).join(" · ")}
                   </div>
                 </td>
@@ -782,14 +814,14 @@ function JobTable({
                         </ColorBadge>
                       ))
                     ) : (
-                      <span className="text-[10.5px] text-text-muted">—</span>
+                      <span className="text-[12px] text-text-muted">—</span>
                     )}
                   </span>
                 </td>
-                <td className="border-b border-border px-3 py-2.5 text-right font-mono text-[11px] text-muted-foreground">
+                <td className="border-b border-border px-3 py-2.5 text-right font-mono text-[12px] text-muted-foreground">
                   {job.budgetHint || "—"}
                 </td>
-                <td className="border-b border-border px-3 py-2.5 text-right font-mono text-[11px] text-muted-foreground">
+                <td className="border-b border-border px-3 py-2.5 text-right font-mono text-[12px] text-muted-foreground">
                   {relAge(job.createdAt)}
                 </td>
               </tr>

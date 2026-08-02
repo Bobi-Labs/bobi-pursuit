@@ -110,7 +110,7 @@ export function AddJobSheet({
       footer={
         result ? (
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-[14px] text-muted-foreground">
               {result.duplicate ? "Already on your board." : "Saved to Triage."}
             </span>
             <span className="flex gap-1.5">
@@ -131,7 +131,7 @@ export function AddJobSheet({
           </div>
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-[14px] text-muted-foreground">
               Stays in this browser. Nothing is uploaded.
             </span>
             <span className="flex gap-1.5">
@@ -156,7 +156,7 @@ export function AddJobSheet({
       ) : (
         <div className="space-y-3">
           {error ? (
-            <div className="rounded-md border border-red-500/30 bg-red-500/10 px-2.5 py-2 text-[11px] text-red-300">
+            <div className="rounded-md border border-red-500/30 bg-red-500/10 px-2.5 py-2 text-[14px] text-red-300">
               {error}
             </div>
           ) : null}
@@ -250,15 +250,15 @@ function ScoreSummary({
   return (
     <div className="space-y-3">
       {duplicate ? (
-        <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-[11px] leading-snug text-amber-200">
+        <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-[14px] leading-snug text-amber-200">
           You already had this URL on the board, so nothing was added — this is
           the card you already have.
         </div>
       ) : null}
 
       <div className="rounded-[10px] border border-border bg-card/60 p-3.5">
-        <div className="text-[13px] font-semibold leading-snug">{job.title}</div>
-        <div className="mt-0.5 text-[11px] text-muted-foreground">
+        <div className="text-[14px] font-semibold leading-snug">{job.title}</div>
+        <div className="mt-0.5 text-[12px] text-muted-foreground">
           {[job.company, job.source].filter(Boolean).join(" · ")}
         </div>
 
@@ -279,13 +279,13 @@ function ScoreSummary({
         </div>
 
         {score ? (
-          <p className="mt-2.5 text-[11px] leading-relaxed text-muted-foreground">
+          <p className="mt-2.5 text-[14px] leading-relaxed text-muted-foreground">
             {score.reasoning}
           </p>
         ) : null}
       </div>
 
-      <p className="text-[11px] leading-relaxed text-muted-foreground">
+      <p className="text-[14px] leading-relaxed text-muted-foreground">
         Open it in Job Studio to see every track&apos;s number side by side — the
         headline is only the best of them.
       </p>

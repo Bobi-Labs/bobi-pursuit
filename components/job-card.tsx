@@ -122,11 +122,11 @@ export function JobCard({
             : "border-border",
       )}
     >
-      <div className="line-clamp-2 text-[12px] font-semibold leading-snug">
+      <div className="line-clamp-2 text-[14px] font-semibold leading-snug">
         {job.title}
       </div>
       {sub ? (
-        <div className="mt-0.5 truncate text-[10.5px] text-muted-foreground">{sub}</div>
+        <div className="mt-0.5 truncate text-[12px] text-muted-foreground">{sub}</div>
       ) : null}
 
       <div className="mt-1.5 flex flex-wrap gap-1">
@@ -144,7 +144,7 @@ export function JobCard({
       </div>
 
       <div className="mt-2 flex items-center justify-between gap-2">
-        <span className="min-w-0 truncate font-mono text-[10.5px] text-muted-foreground">
+        <span className="min-w-0 truncate font-mono text-[12px] text-muted-foreground">
           {job.budgetHint || "no budget"} · {relAge(job.createdAt)}
         </span>
         <span

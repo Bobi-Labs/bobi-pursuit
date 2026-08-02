@@ -132,10 +132,17 @@ and URL and can paste the rest.
 
 ### Browser extension
 
-A Chrome side-panel extension can capture without the select-and-click step: it
-reads the job description out of the page directly, using per-site selectors for
-the common boards, and falls back to your selection when a site is unfamiliar.
-It sends the same parameters to the same URL.
+A **Chrome and Firefox** extension captures without the select-and-click step:
+it reads the job description out of the page directly, using per-site selectors
+for the common boards, and falls back to your selection when a site is
+unfamiliar. It sends the same parameters to the same URL.
+
+Source and install instructions are in
+[`extension/`](https://github.com/Bobi-Labs/bobi-pursuit/tree/main/extension).
+It is MIT too, it defaults to this free app with no account, and it reads a page
+only when you click. (Absolute URL on purpose: this README is the root README of
+the public repo but lives one level down in the private tree, so a relative link
+would be correct in exactly one of the two places.)
 
 Capture is always explicit. Nothing is read from a page until you click.
 
@@ -257,8 +264,7 @@ a frozen empty document as its server snapshot.
 
 **MIT** — see [LICENSE](./LICENSE). Fork it, ship it, sell it.
 
-The licence covers the code only. The names "Bobi·Pursuit" and "Bobi Labs", and
-the Bobi Labs branding, are not licensed with it. Please ship your fork under
-your own name.
+The licence covers the code only. The names and branding are not licensed with
+it — see [TRADEMARK.md](./TRADEMARK.md). Please ship your fork under your own name.
 
 Built by [Bobi Labs](https://bobilabs.dev).

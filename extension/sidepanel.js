@@ -1,0 +1,452 @@
+// Side-panel "sweep cockpit".
+//
+// Auth: by default there is none, and that is the point. The free
+// Bobi-Pursuit app has no accounts and no API, so capture just hands the
+// job to the app's own add form. Self-hosters can switch to server mode
+// under Advanced; only then do we look for a session — the dashboard's
+// cookie (bobi-pursuit-auth) replayed as a Bearer, or a token pasted under
+// Advanced. `cookies` is an OPTIONAL permission, so it is normally absent:
+// treat "not granted" as plain "not signed in", never as an error.
+//
+// P2: a live glance — pipeline counts, "already in pipeline?" for the
+// tab you're on, a top-to-review queue, and quick Promote/Skip — so a
+// manual sweep is a guided loop, not tab-juggling. Server mode only;
+// those are all server reads.
+
+const DEFAULT_INSTANCE = "https://pursuit.bobilabs.dev";
+const AUTH_COOKIE = "bobi-pursuit-auth";
+
+// Short tags for the best-matched scoring profile.
+const PROFILE_TAG = {
+  contract_stack: "Stack",
+  fte_pm: "PM",
+  micro_async: "Micro",
+};
+
+const els = {};
+[
+  "signin", "signinBtn", "recheckBtn", "capture", "tabTitle", "tabUrl",
+  "captureBtn", "result", "gear", "counts", "cTriage", "cPromoted",
+  "cDrafted", "dupe", "queue", "queueList",
+].forEach((id) => (els[id] = document.getElementById(id)));
+
+// `appMode` picks which Bobi-Pursuit you're capturing into:
+//   "local"  — DEFAULT. The free static app: no API and no account exists, so
+//              we open its /?add=1&… capture URL and let it prefill its own
+//              add form.
+//   "server" — an advanced self-hosted deployment: POST to /api/jobs/manual,
+//              needs a session or an ingest token, and the job is scored
+//              server-side.
+// The free tier has no auth at all, which is why the default mode bypasses
+// sign-in entirely rather than failing an auth check that can never succeed.
+let cfg = { instanceUrl: DEFAULT_INSTANCE, token: "", appMode: "local" };
+let summaryTimer = null;
+
+const openOptions = () => chrome.runtime.openOptionsPage();
+els.gear.addEventListener("click", openOptions);
+
+async function loadCfg() {
+  const s = await chrome.storage.sync.get(["instanceUrl", "token", "appMode"]);
+  cfg.instanceUrl = (s.instanceUrl || DEFAULT_INSTANCE).replace(/\/+$/, "");
+  cfg.token = (s.token || "").trim();
+  // Absent stored value means a fresh install, and a fresh install belongs on
+  // the free app — so anything that isn't an explicit opt-in to server mode
+  // resolves to "local".
+  cfg.appMode = s.appMode === "server" ? "server" : "local";
+}
+
+const isLocalMode = () => cfg.appMode === "local";
+
+/** Hostname of a URL, or "extension" if it can't be parsed. Never throws. */
+function hostOf(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "") || "extension";
+  } catch {
+    return "extension";
+  }
+}
+
+/**
+ * `cookies` is an OPTIONAL permission — it only means anything in server mode,
+ * so a casual user is never prompted for it and it is normally absent. When
+ * it's missing `chrome.cookies` may not exist at all, so check before touching
+ * it. Never throws: "not granted" is just "not signed in".
+ */
+async function hasCookieAccess() {
+  if (!chrome.cookies || !chrome.permissions) return false;
+  try {
+    return await chrome.permissions.contains({ permissions: ["cookies"] });
+  } catch {
+    return false;
+  }
+}
+
+async function resolveAuth() {
+  if (cfg.token) return cfg.token;
+  // No cookie access → no session to find. Fall through to "not signed in".
+  if (!(await hasCookieAccess())) return null;
+  try {
+    const c = await chrome.cookies.get({ url: cfg.instanceUrl, name: AUTH_COOKIE });
+    if (c && c.value) return c.value;
+  } catch (e) {
+    console.warn("cookie read:", e);
+  }
+  return null;
+}
+
+async function activeTab() {
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  return tab || null;
+}
+const capturable = (u) => !!u && /^https?:\/\//i.test(u);
+const fitTone = (n) => (n == null ? "" : n >= 70 ? "ok" : n >= 40 ? "warn" : "err");
+
+async function refreshTab() {
+  const tab = await activeTab();
+  if (!tab) return;
+  els.tabTitle.textContent = tab.title || "(untitled)";
+  els.tabUrl.textContent = tab.url || "";
+  const ok = capturable(tab.url);
+  els.captureBtn.disabled = !ok;
+  els.captureBtn.textContent = ok ? "⬆ Capture this job" : "Can't capture this page";
+}
+
+async function renderAuthState() {
+  // The free app has no accounts and no API — there is nothing to sign in to,
+  // so go straight to capture. (The pipeline summary is a server read, so it
+  // simply doesn't exist in this mode.)
+  if (isLocalMode()) {
+    els.signin.style.display = "none";
+    els.capture.style.display = "block";
+    refreshTab();
+    return;
+  }
+  const bearer = await resolveAuth();
+  const authed = !!bearer;
+  els.signin.style.display = authed ? "none" : "block";
+  els.capture.style.display = authed ? "block" : "none";
+  if (authed) {
+    refreshTab();
+    loadSummary();
+  }
+}
+
+els.signinBtn.addEventListener("click", () => {
+  // /login is a server-mode page; the free app has nothing to sign into.
+  if (isLocalMode()) return;
+  chrome.tabs.create({ url: `${cfg.instanceUrl}/login` });
+});
+els.recheckBtn.addEventListener("click", renderAuthState);
+
+// Registering this listener at all needs the optional `cookies` permission —
+// on a fresh install `chrome.cookies` is undefined and touching it here would
+// throw before the panel finished loading. Wire it only once we know we may.
+(async () => {
+  if (!(await hasCookieAccess())) return;
+  chrome.cookies.onChanged.addListener((info) => {
+    if (info.cookie && info.cookie.name === AUTH_COOKIE && !info.removed) {
+      renderAuthState();
+    }
+  });
+})();
+chrome.tabs.onActivated.addListener(onTabChange);
+chrome.tabs.onUpdated.addListener((_id, i) => {
+  if (i.status === "complete" || i.title) onTabChange();
+});
+chrome.storage.onChanged.addListener((c, area) => {
+  // appMode included: switching between the free app and a self-hosted one
+  // changes whether there's anything to sign into at all.
+  if (area === "sync" && (c.token || c.instanceUrl || c.appMode)) {
+    loadCfg().then(renderAuthState);
+  }
+});
+
+function onTabChange() {
+  refreshTab();
+  clearTimeout(summaryTimer);
+  summaryTimer = setTimeout(loadSummary, 400); // debounce rapid nav
+}
+
+// ── cockpit ───────────────────────────────────────────────────────
+async function api(path, opts) {
+  const bearer = await resolveAuth();
+  if (!bearer) return { authMissing: true };
+  const resp = await fetch(`${cfg.instanceUrl}${path}`, {
+    ...opts,
+    headers: { ...(opts && opts.headers), Authorization: `Bearer ${bearer}` },
+  });
+  if (resp.status === 401) return { unauth: true };
+  const data = await resp.json().catch(() => ({}));
+  return { ok: resp.ok, status: resp.status, data };
+}
+
+async function quickStatus(jobId, status, btn) {
+  if (btn) btn.disabled = true;
+  const r = await api(`/api/jobs/${jobId}/status`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+  if (r.unauth) return toSignin();
+  loadSummary();
+}
+
+async function loadSummary() {
+  // Server-only read. Bail before api() can miss auth and bounce the panel to
+  // the sign-in card — a tab switch on the free app must not do that.
+  if (isLocalMode()) return;
+  const tab = await activeTab();
+  const u = tab && capturable(tab.url) ? `?url=${encodeURIComponent(tab.url)}` : "";
+  const r = await api(`/api/pipeline/summary${u}`);
+  if (r.authMissing || r.unauth) return toSignin();
+  if (!r.ok || !r.data) return;
+  const { counts, top, dupe } = r.data;
+
+  els.counts.style.display = "flex";
+  els.cTriage.textContent = counts.triage ?? "–";
+  els.cPromoted.textContent = counts.promoted ?? "–";
+  els.cDrafted.textContent = counts.drafted ?? "–";
+
+  // Dedupe banner for the tab you're on.
+  if (dupe) {
+    const tone = fitTone(dupe.fit);
+    const st = dupe.proposal_status || dupe.pipeline_status || "in pipeline";
+    els.dupe.style.display = "block";
+    els.dupe.innerHTML =
+      `<div class="t">✓ Already in your pipeline</div>` +
+      `<div class="s">fit <b class="${tone}">${dupe.fit ?? "—"}</b> · ${st}</div>` +
+      `<div class="row-actions">` +
+      `${dupe.pipeline_status === "triage" ? '<button class="promote" data-act="promote">⚡ Promote</button>' : ""}` +
+      `${dupe.pipeline_status !== "ignored" ? '<button data-act="skip">Skip</button>' : ""}` +
+      `</div>`;
+    els.dupe.querySelectorAll("button").forEach((b) =>
+      b.addEventListener("click", () =>
+        quickStatus(dupe.job_id, b.dataset.act === "promote" ? "promoted" : "ignored", b),
+      ),
+    );
+  } else {
+    els.dupe.style.display = "none";
+  }
+
+  // Top-to-review queue.
+  if (top && top.length) {
+    els.queue.style.display = "block";
+    els.queueList.innerHTML = "";
+    top.forEach((it) => {
+      const row = document.createElement("div");
+      row.className = "qitem";
+      const tone = fitTone(it.fit);
+      // Under MAX-of-three fit, the number alone is ambiguous — tag the
+      // best-matched profile so the operator knows WHY it scored high.
+      const tag = PROFILE_TAG[it.best_profile] || "";
+      row.innerHTML =
+        `<span class="ft ${tone}">${it.fit ?? "—"}</span>` +
+        `<span class="tt" title="${(it.title || "").replace(/"/g, "&quot;")}">${it.title || "(untitled)"}</span>` +
+        (tag ? `<span class="ptag">${tag}</span>` : "") +
+        `<button class="qp">⚡</button>`;
+      row.querySelector(".tt").addEventListener("click", () => {
+        if (it.url) chrome.tabs.create({ url: it.url });
+      });
+      row.querySelector(".qp").addEventListener("click", (e) =>
+        quickStatus(it.job_id, "promoted", e.target),
+      );
+      els.queueList.appendChild(row);
+    });
+  } else {
+    els.queue.style.display = "none";
+  }
+}
+
+// ── capture ───────────────────────────────────────────────────────
+//
+// Runs INSIDE the page (no extension APIs here). This is the only route
+// to the sites the scrapers can't legally or technically reach — and, per
+// the 2026-07 source probe, the ONLY route to micro_async gigs at all:
+// fixed-scope work (data cleaning, scraping, doc conversion, ETL, QA
+// scripting) lives on gig marketplaces, and every marketplace is
+// either dead to us (Upwork RSS 410) or hostile (Reddit 403s everything).
+//
+// Ordered most-specific → least. First match wins, so a site-specific
+// container beats the generic <main> fallback. Selection always wins over
+// all of it — if the operator highlights the JD, we trust that.
+function extractJob() {
+  const clip = (s, n) => (s || "").replace(/\s+/g, " ").trim().slice(0, n);
+  const meta = (p) =>
+    document.querySelector(`meta[property="${p}"],meta[name="${p}"]`)?.content || "";
+
+  const JD_SELECTORS = [
+    // LinkedIn (logged-in + logged-out variants)
+    "#job-details",
+    ".jobs-description__content",
+    ".jobs-box__html-content",
+    ".show-more-less-html__markup",
+    ".description__text",
+    // Upwork — micro_async + contract gigs
+    '[data-test="Description"]',
+    '[data-test="job-description-text"]',
+    "section.air3-card-section .break",
+    // Contra
+    '[data-testid="opportunity-description"]',
+    // Reddit (r/forhire, r/jobbit) — browsable by a human, not by us
+    '[data-test-id="post-content"]',
+    "shreddit-post .md",
+    ".usertext-body .md",
+    // Indeed / Glassdoor (human-browsable only)
+    "#jobDescriptionText",
+    ".jobDescriptionContent",
+    // Wellfound / AngelList
+    '[data-test="JobDescription"]',
+    // Generic ATS embeds
+    "#content .section-wrapper",
+    ".job-description",
+    ".jobDescription",
+    // Generic fallbacks
+    "article",
+    "[role='main']",
+    "main",
+  ];
+
+  const titleFromDom = () => {
+    const h =
+      document.querySelector(".job-details-jobs-unified-top-card__job-title") || // LinkedIn
+      document.querySelector('[data-test="job-title"]') ||                        // Upwork
+      document.querySelector("h1");
+    return h ? clip(h.innerText, 300) : "";
+  };
+
+  const title = clip(titleFromDom() || meta("og:title") || document.title, 300);
+
+  const selection = String(window.getSelection ? window.getSelection() : "");
+  let body = selection;
+  let via = "selection";
+
+  if (clip(body, 40).length < 40) {
+    via = "fallback";
+    for (const sel of JD_SELECTORS) {
+      const el = document.querySelector(sel);
+      const text = el ? clip(el.innerText, 11000) : "";
+      // 200 chars = a real JD, not a nav blob or an empty shell.
+      if (text.length >= 200) {
+        body = el.innerText;
+        via = sel;
+        break;
+      }
+    }
+    if (clip(body, 40).length < 40) {
+      body = document.body ? document.body.innerText : "";
+      via = "body";
+    }
+  }
+
+  return {
+    title,
+    url: location.href,
+    description: clip(body, 11000),
+    usedSelection: via === "selection",
+    via,
+  };
+}
+
+function render(html, cls) {
+  els.result.className = "result show " + (cls || "");
+  els.result.innerHTML = html;
+}
+function toSignin() {
+  // There is no sign-in on the free app, so never strand a local-mode user on
+  // a card whose only button opens a server-mode /login page.
+  if (isLocalMode()) return;
+  els.capture.style.display = "none";
+  els.signin.style.display = "block";
+}
+
+async function capture() {
+  els.captureBtn.disabled = true;
+  els.captureBtn.textContent = "Capturing…";
+  render('<div class="sub">Extracting + scoring…</div>', "");
+  try {
+    const bearer = isLocalMode() ? "local" : await resolveAuth();
+    if (!bearer) return toSignin();
+    const tab = await activeTab();
+    if (!tab || !capturable(tab.url)) throw new Error("This page can't be captured.");
+
+    const [{ result: job } = {}] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: extractJob,
+    });
+    if (!job || job.description.length < 20) {
+      throw new Error("Couldn't read enough text. Select the job description and retry.");
+    }
+
+    // Free app: no API to POST to. Hand the job over via its capture URL —
+    // the app prefills its add form and the user confirms there. Same params
+    // the bookmarklet uses, so both routes stay in sync.
+    if (isLocalMode()) {
+      const q = new URLSearchParams({
+        add: "1",
+        t: job.title || "",
+        u: job.url || "",
+        d: job.description || "",
+        s: hostOf(job.url),
+      });
+      await chrome.tabs.create({ url: `${cfg.instanceUrl}/?${q.toString()}` });
+      render(
+        '<div class="big ok">Sent to Bobi-Pursuit</div>' +
+          '<div class="sub">Opened the add form pre-filled — review it there and save.</div>',
+        "ok",
+      );
+      return;
+    }
+
+    const r = await api("/api/jobs/manual", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: job.title,
+        url: job.url,
+        description: job.description,
+        source_label: "extension",
+      }),
+    });
+    if (r.unauth || r.authMissing) {
+      toSignin();
+      const p = els.signin.querySelector("p");
+      if (p) p.textContent = "Your session expired. Sign in again to keep capturing.";
+      return;
+    }
+    if (!r.ok) {
+      render(`Error: ${(r.data && r.data.error) || r.status}`, "err");
+      return;
+    }
+    if (r.data.dedup) {
+      render('<div class="big warn">Already in your pipeline</div><div class="sub">Skipped — captured before.</div>', "warn");
+    } else {
+      const s = r.data.scored;
+      if (s) {
+        const tone = fitTone(s.fit_score);
+        render(
+          `<div class="big ${tone}">Added · fit ${s.fit_score}</div>` +
+            `<div class="sub"><span class="pill ${tone}">${s.fit_score}</span> ` +
+            `${s.employment_type} · ~${Math.round(s.complexity_hours)}h</div>` +
+            `<div class="sub">${(s.reasoning || "").slice(0, 220)}</div>` +
+            `<div class="sub">${job.usedSelection ? "Captured your selection." : `Auto-detected the description (${job.via}).`}</div>`,
+          tone,
+        );
+      } else {
+        render('<div class="big ok">Added to pipeline</div><div class="sub">Scoring queued.</div>', "ok");
+      }
+    }
+    loadSummary(); // refresh counts + dedupe right away
+  } catch (e) {
+    render(`Error: ${e.message}`, "err");
+  } finally {
+    els.captureBtn.disabled = false;
+    refreshTab();
+  }
+}
+
+els.captureBtn.addEventListener("click", capture);
+
+(async () => {
+  await loadCfg();
+  await renderAuthState();
+})();

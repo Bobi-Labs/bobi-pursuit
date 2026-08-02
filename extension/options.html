@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Bobi-Pursuit — settings</title>
+    <style>
+      :root {
+        --bg: #0b0e14; --card: #131722; --border: #232a39;
+        --fg: #e6e9ef; --muted: #8a93a6; --primary: #6ea8fe; --green: #34d399;
+        --amber: #f7b955;
+      }
+      body {
+        margin: 0; background: var(--bg); color: var(--fg);
+        font: 14px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      .wrap { max-width: 520px; margin: 40px auto; padding: 0 20px; }
+      h1 { font-size: 18px; letter-spacing: -0.02em; }
+      p.muted { color: var(--muted); font-size: 12.5px; }
+      details {
+        margin-top: 22px; border: 1px solid var(--border);
+        border-radius: 10px; background: var(--card); padding: 4px 14px 14px;
+      }
+      summary { cursor: pointer; padding: 12px 0; font-weight: 700; font-size: 13px; }
+      summary span { color: var(--muted); font-weight: 500; }
+      label {
+        display: block; font-size: 11px; text-transform: uppercase;
+        letter-spacing: 0.08em; color: var(--muted); font-weight: 700;
+        margin: 16px 0 6px;
+      }
+      input {
+        width: 100%; padding: 10px 12px; border-radius: 8px;
+        border: 1px solid var(--border); background: var(--bg);
+        color: var(--fg); font-size: 13px;
+      }
+      button {
+        margin-top: 20px; padding: 10px 18px; border: 0; border-radius: 8px;
+        background: var(--primary); color: #06101f; font-weight: 800;
+        font-size: 13px; cursor: pointer;
+      }
+      #status { margin-left: 12px; font-size: 12.5px; color: var(--green); }
+      p.warn { color: var(--amber); }
+      label.radio {
+        display: flex; align-items: center; gap: 8px; margin: 8px 0;
+        text-transform: none; letter-spacing: normal; font-weight: 400;
+        font-size: 13px; color: var(--fg); cursor: pointer;
+      }
+      label.radio input { width: auto; margin: 0; }
+      code { background: var(--card); border: 1px solid var(--border); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Bobi-Pursuit — capture</h1>
+      <p class="muted">
+        Point the extension at whichever Pursuit you use, then capture jobs
+        from the side panel.
+      </p>
+
+      <label>Which app are you capturing into?</label>
+      <p>
+        <label class="radio">
+          <input type="radio" name="appMode" id="modeLocal" value="local" checked />
+          <strong>Free app</strong> — no account (recommended)
+        </label>
+        <label class="radio">
+          <input type="radio" name="appMode" id="modeServer" value="server" />
+          <strong>Self-hosted</strong> — your own deployment with a database
+        </label>
+      </p>
+      <p class="muted" id="modeHelp"></p>
+      <p class="muted warn" id="cookieNote" hidden></p>
+
+      <label for="instanceUrl">App URL</label>
+      <input id="instanceUrl" type="url" placeholder="https://pursuit.bobilabs.dev" />
+
+      <div id="serverAuth">
+        <label for="token">Ingest token (optional)</label>
+        <input id="token" type="password" placeholder="leave blank to use Sign in" autocomplete="off" />
+        <p class="muted">
+          Leave blank to authenticate with your dashboard session
+          (recommended). A token is the deployment's
+          <code>MANUAL_INGEST_TOKEN</code> — for headless or scripted use.
+        </p>
+      </div>
+
+      <div>
+        <button id="save">Save</button>
+        <span id="status"></span>
+      </div>
+    </div>
+    <script src="options.js"></script>
+  </body>
+</html>

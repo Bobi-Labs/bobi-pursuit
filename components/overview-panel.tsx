@@ -3,12 +3,17 @@
 /**
  * Overview — "what needs attention", in the dashboard's own layout.
  *
- * Four KPI cards, a list of the highest-fit jobs still sitting in triage, a
- * per-track distribution, and the explainer. Same shape as the self-hosted
- * `OverviewPanel`; different contents, because the questions this tier can
- * honestly answer are different. There is no "source health" card here — there
- * are no sources — and there is no trend line, because a local pipeline with no
- * outcome history has nothing to trend.
+ * Four KPI cards, a list of the highest-fit jobs still sitting in triage, and a
+ * per-track distribution. Same shape as the self-hosted `OverviewPanel`;
+ * different contents, because the questions this tier can honestly answer are
+ * different. There is no "source health" card here — there are no sources — and
+ * there is no trend line, because a local pipeline with no outcome history has
+ * nothing to trend.
+ *
+ * The "how it works" explainer used to sit at the bottom of this file's output.
+ * It has its own tab now (`/howitworks/`), which is why nothing here imports it:
+ * this screen answers "what needs attention", and an explainer stapled below the
+ * fold answers a question nobody on their second visit is asking.
  *
  * The KPI cards are buttons: every number on this screen is a filter you can
  * fall into. A count you cannot click is a number you have to act on somewhere
@@ -19,7 +24,6 @@ import { trackDistribution } from "@/lib/profile-view";
 import type { Job, PipelineStatus, Profile } from "@/lib/types";
 import { PROFILE_MATCH_THRESHOLD } from "@/lib/types";
 
-import { HowItWorksPanel } from "./how-it-works";
 import {
   Button,
   ColorBadge,
@@ -114,8 +118,11 @@ export function OverviewPanel({
         />
       </div>
 
+      {/* Both branches below are the last thing on this panel now that the
+          explainer has its own tab, so neither carries a bottom margin — the
+          `FolderPanel`'s own padding is the gap. */}
       {jobs.length === 0 ? (
-        <PanelCard className="mb-5">
+        <PanelCard>
           <div className="py-8 text-center">
             <div className="text-[14px] font-bold">Nothing captured yet</div>
             <p className="mx-auto mt-1.5 max-w-md text-[14px] leading-relaxed text-muted-foreground">
@@ -134,7 +141,7 @@ export function OverviewPanel({
           </div>
         </PanelCard>
       ) : (
-        <div className="mb-5 grid grid-cols-1 gap-3.5 lg:grid-cols-[1.3fr_1fr]">
+        <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-[1.3fr_1fr]">
           {/* ── the queue ── */}
           <PanelCard>
             <div className="mb-3 flex items-center justify-between gap-3">
@@ -244,8 +251,6 @@ export function OverviewPanel({
           </PanelCard>
         </div>
       )}
-
-      <HowItWorksPanel />
     </div>
   );
 }

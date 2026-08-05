@@ -4,11 +4,34 @@
  * The first-run tour.
  *
  * Onboarding asks you questions; this asks nothing. It is the thirty seconds
- * after the wizard, for the person who is now looking at a dashboard with three
- * tabs on it and no idea which one is the point. Seven stops, plain sentences,
- * and every one of them true of the free tier as shipped — a tour that describes
- * a feature this build does not have is worse than no tour, because the user
- * spends the next ten minutes hunting for it.
+ * after the wizard, for the person now looking at a dashboard with four tabs on
+ * it and no idea which one is the point.
+ *
+ * **Five stops, and the shape is deliberate:** one on how jobs get in, then one
+ * per tab saying what that area is for and how to use it. The version before
+ * this had seven, and all seven were read from the same box in the middle of the
+ * same unchanging page — which is a slideshow with a Next button, not a tour.
+ * Two things changed:
+ *
+ *  - **Each stop names the tab it is about** (`TourStop.tab`) and the shell
+ *    navigates there before you read the card. The effect that consumes this
+ *    lives in `pipeline-app.tsx`, because that file owns the tab-to-URL table
+ *    and there should be exactly one of those.
+ *  - **The card sits in a bottom corner**, never dead centre. The app's content
+ *    is top-anchored (banner, tabs, then the panel), so a bottom corner is the
+ *    position that covers least of what the stop just promised to show you, and
+ *    `TourStop.place` picks the corner away from whatever the stop points at.
+ *
+ * The backdrop is dimmed only lightly for the same reason. A 70% scrim was fine
+ * when there was nothing behind the card worth looking at; now there is.
+ *
+ * Every sentence in `TOUR_STOPS` is true of the free tier as shipped. This tier
+ * captures by hand — one deliberate click, via the extension, the bookmarklet or
+ * a paste — and cannot fetch or scrape a posting at all. An Anthropic key
+ * changes how an already-captured posting is *scored* and nothing else, and
+ * nothing runs while the tab is closed. A tour that describes a feature this
+ * build does not have is worse than no tour, because the user spends the next
+ * ten minutes hunting for it.
  *
  * Three rules it obeys:
  *
@@ -22,9 +45,16 @@
  *     every stop, and the dots let you jump. A modal you cannot leave is how a
  *     tour becomes the first thing someone dislikes about the product.
  *  3. **Any exit counts as seen.** Skipping on stop one and finishing on stop
- *     seven both write the flag, because "I do not want this" is an answer and
+ *     five both write the flag, because "I do not want this" is an answer and
  *     re-asking it next launch is nagging. That write lives here rather than in
  *     the caller so there is exactly one way to be marked seen.
+ *
+ * What this component deliberately does **not** own is `open` and `step`. Moving
+ * between tabs is a route change, and a route change remounts the whole shell
+ * (see `ViewSession` in `pipeline-app.tsx`) — local `useState` here would be
+ * wiped by the tour's own first navigation, and the tour would restart at stop
+ * one forever. Both live in that one session object with everything else that
+ * has to outlive a route change.
  *
  * Storage failures are swallowed on purpose. Safari in private mode hands you a
  * `localStorage` whose `setItem` throws, and the honest consequence of that is
@@ -32,8 +62,11 @@
  * sees first.
  */
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, type ReactNode } from "react";
 
+// Type-only, and it has to stay that way: `pipeline-app` imports this module for
+// real, so a value import here would close the cycle at runtime.
+import type { TabKey } from "./pipeline-app";
 import { Button, cx } from "./ui";
 
 /** One flag, one key. Namespaced so it never collides with `pursuit.doc`. */
@@ -72,13 +105,41 @@ export function markTourSeen(): void {
   }
 }
 
+/**
+ * Forget that this browser ever saw the tour.
+ *
+ * Exactly one caller: "delete everything" in Settings. "It never shows twice" is
+ * a promise about nagging, not about the flag being immortal — someone who has
+ * just wiped the app is asking for the app they would have got on day one, and
+ * arriving at an empty board with no setup and no explanation is precisely the
+ * from-scratch run that was reported broken.
+ *
+ * Browser-only, same as its two neighbours. Call it from an effect or a handler.
+ */
+export function resetTourSeen(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(TOUR_SEEN_KEY);
+  } catch {
+    // Same trade as markTourSeen: a storage failure costs a tour, not a screen.
+  }
+}
+
 /* ──────────────────────────────── Content ─────────────────────────────── */
 
-interface TourStop {
-  /** Stable key for React, and the dot rail's label. */
+export interface TourStop {
+  /** Stable key for React, and part of the jump dots' accessible name. */
   key: string;
-  /** Two words, for the jump dots' accessible name. */
+  /** Two words. Shown next to the step counter so the card names its screen. */
   label: string;
+  /** The tab this stop is about. The shell navigates here before you read it. */
+  tab: TabKey;
+  /**
+   * Which bottom corner the card takes. Both are bottom corners because the
+   * content this tour exists to point at starts at the top of the page; left vs
+   * right is only ever "the corner furthest from what this stop is describing".
+   */
+  place: "left" | "right";
   title: string;
   body: ReactNode;
 }
@@ -87,110 +148,125 @@ function Strong({ children }: { children: ReactNode }) {
   return <span className="font-semibold text-foreground">{children}</span>;
 }
 
-const STOPS: readonly TourStop[] = [
+/**
+ * The five stops, in tab order after the first.
+ *
+ * Exported because `pipeline-app.tsx` reads `.tab` to drive the address bar. It
+ * is the only field anything outside this file touches.
+ */
+export const TOUR_STOPS: readonly TourStop[] = [
   {
     key: "capture",
-    label: "Capture",
-    title: "Start here: capture a job",
+    label: "Getting jobs in",
+    tab: "overview",
+    // Left, alone among the five: this is the one stop whose subject is fixed in
+    // the top-right of the screen, and the empty corner drags the eye up to it.
+    place: "left",
+    title: "Nothing arrives on its own",
     body: (
       <>
-        <Strong>+ Capture a job</Strong> sits in the header, and it is there on
-        every tab. Nothing arrives on its own in this tier, so the board stays
-        empty until you put something on it. One posting is enough to see how the
-        rest of this works.
-      </>
-    ),
-  },
-  {
-    key: "routes",
-    label: "Ways in",
-    title: "Two ways in: paste a link, or use the extension",
-    body: (
-      <>
-        By hand, you paste a title and the posting text into the capture form.
-        The browser extension does the same thing from the page you are already
-        reading and fills the form for you, and the bookmarklet is the version
-        that needs no install. Every route is a click you make, and the same URL
-        captured twice stays one card.
+        There are no scrapers here and nothing runs while this tab is closed, so
+        the board stays empty until you put something on it.{" "}
+        <Strong>+ Capture a job</Strong> sits in the header on every tab. The
+        browser extension and the bookmarklet do the same job in one click from a
+        posting you already have open, and the same URL captured twice stays one
+        card.
       </>
     ),
   },
   {
     key: "overview",
     label: "Overview",
+    tab: "overview",
+    place: "right",
     title: "Overview: what needs attention",
     body: (
       <>
-        The tab you are on now. Four counts across the top, the highest scoring
-        jobs still waiting on a decision, and how your captures are spread across
-        the tracks you defined. Every number here is a button that drops you into
-        the matching part of the board.
+        Behind this card: four counts, the strongest jobs still waiting on a
+        decision, and how your captures spread across your tracks. Every number
+        here is a button that drops you into the matching slice of the board.
+        Open this tab first when you come back to a pile you have not looked at
+        in a week.
       </>
     ),
   },
   {
     key: "pipeline",
     label: "Pipeline",
+    tab: "pipeline",
+    place: "right",
     title: "Pipeline: decide once, not four times",
     body: (
       <>
-        <Strong>Triage</Strong> is everything captured and undecided. Promote
-        what is worth an afternoon, skip the rest, and mark{" "}
-        <Strong>Applied</Strong> yourself once you have actually sent something,
-        because nothing here can send it for you. Skipped jobs go to Ignored,
-        which keeps them out of the way without deleting them.
+        This is the board. <Strong>Triage</Strong> is everything captured and
+        undecided: promote what is worth an afternoon, skip the rest, and do it
+        fast. <Strong>Applied</Strong> is a step only you can take, because
+        nothing here can send anything for you. Skipped jobs go to Ignored, kept
+        and restorable rather than deleted.
       </>
     ),
   },
   {
     key: "studio",
     label: "Job Studio",
+    tab: "studio",
+    place: "right",
     title: "Job Studio: one job, and all the working",
     body: (
       <>
-        Open any card and you get the posting, one score per track instead of a
-        single averaged verdict, and the exact signals behind each number. Your
-        notes live here too. If you have added an Anthropic key in Settings, this
-        is also where you ask Claude to read the posting properly.
+        Open any card and it lands here: the posting, one score per track instead
+        of a single averaged verdict, the signals behind each number, and your
+        notes. Add an Anthropic key in <Strong>Settings</Strong> and you can ask
+        Claude to read a posting properly. That re-reads what you captured; it
+        never goes and fetches one.
       </>
     ),
   },
   {
-    key: "limits",
-    label: "Good to know",
-    title: "Worth knowing before you start",
+    key: "howitworks",
+    label: "How it works",
+    tab: "howitworks",
+    place: "right",
+    title: "How it works: the long version",
     body: (
       <>
-        All of this lives in this browser. There is no account and no server of
-        ours, which also means clearing your browser data deletes your pipeline,
-        so treat <Strong>Export</Strong> in Settings as the backup. Nothing runs
-        while the tab is closed: no scrapers, no schedule, no email.
-      </>
-    ),
-  },
-  {
-    key: "done",
-    label: "Done",
-    title: "That is the whole tool",
-    body: (
-      <>
-        Capture, triage, decide. This tour will not show again, and{" "}
-        <Strong>How it works</Strong> in the header covers all of it in more
-        detail whenever you want it. Worth five minutes early on: open{" "}
-        <Strong>Settings</Strong> and shape the tracks your scores come from.
+        The tab behind this card is the manual: every capture route including the
+        bookmarklet to copy, what scoring does with and without a key, and where
+        your data lives. That last part is worth knowing now. All of it stays in
+        this browser, so <Strong>Export</Strong> in Settings is the only backup
+        you have, and clearing your browser data clears the pipeline.
       </>
     ),
   },
 ];
 
+/** Bottom corner on a real screen; a bottom sheet on a phone, where there is no corner to take. */
+const PLACE: Record<TourStop["place"], string> = {
+  left: "sm:justify-start",
+  right: "sm:justify-end",
+};
+
 /* ───────────────────────────────── Surface ────────────────────────────── */
 
-export function Tour({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [step, setStep] = useState(0);
+export function Tour({
+  open,
+  step,
+  onStep,
+  onClose,
+}: {
+  open: boolean;
+  /** Controlled by the shell, because a route change destroys local state. */
+  step: number;
+  onStep: (next: number) => void;
+  onClose: () => void;
+}) {
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const last = STOPS.length - 1;
-  const stop = STOPS[Math.min(step, last)];
+  const last = TOUR_STOPS.length - 1;
+  // Clamped rather than trusted: `step` crosses a component boundary and an
+  // out-of-range index here would be a blank card on someone's first minute.
+  const index = Math.min(Math.max(step, 0), last);
+  const stop = TOUR_STOPS[index];
 
   /** Every way out of this component goes through here. See the file header. */
   const dismiss = useCallback(() => {
@@ -198,27 +274,24 @@ export function Tour({ open, onClose }: { open: boolean; onClose: () => void }) 
     onClose();
   }, [onClose]);
 
-  /* Reopening starts at the beginning. The caller is free to mount this
-     permanently and flip `open`, and a tour that resumes on stop five for
-     someone who deliberately left it is answering a question nobody asked. */
-  useEffect(() => {
-    if (open) setStep(0);
-  }, [open]);
-
-  /* Escape, and the scroll lock. Both touch `document`, so both are effects —
-     same shape as `Sheet` in ui.tsx, deliberately, because two overlays in one
-     app that lock scrolling differently is a bug waiting for a scrollbar. */
+  /* Escape, and the scroll lock.
+   *
+   * Unlike `Sheet` in ui.tsx this does not capture and restore the previous
+   * overflow value. This component unmounts and remounts every time the tour
+   * changes tab, and if a new mount ever ran before the old cleanup it would
+   * capture "hidden" and then restore it forever. Clearing outright can at worst
+   * unlock the background one frame early; capturing can at worst leave the
+   * whole page unscrollable after the tour is gone. */
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") dismiss();
     };
     document.addEventListener("keydown", onKey);
-    const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = previous;
+      document.body.style.overflow = "";
     };
   }, [open, dismiss]);
 
@@ -233,36 +306,46 @@ export function Tour({ open, onClose }: { open: boolean; onClose: () => void }) 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center"
+      className={cx(
+        // `items-end` on every breakpoint: the card belongs at the bottom of the
+        // screen because everything it describes begins at the top of it.
+        "fixed inset-0 z-50 flex items-end justify-center p-4 sm:p-6",
+        PLACE[stop.place],
+      )}
       role="dialog"
       aria-modal="true"
       aria-labelledby="tour-title"
     >
       {/* Leaving by clicking away is a legitimate answer, so the backdrop is a
-          real button rather than a decorative div. */}
+          real button rather than a decorative div. Dimmed at 35% rather than the
+          70% it used to be: the page behind is now the point of the stop, and a
+          scrim heavy enough to hide it would undo the navigation. */}
       <button
         type="button"
         aria-label="Close the tour"
         onClick={dismiss}
-        className="absolute inset-0 h-full w-full cursor-default bg-black/70"
+        className="absolute inset-0 h-full w-full cursor-default bg-black/35"
       />
 
       <div
         ref={panelRef}
         tabIndex={-1}
-        className="relative flex w-full max-w-lg flex-col rounded-[12px] border border-border bg-card shadow-2xl outline-none"
+        className="relative flex w-full max-w-md flex-col rounded-[12px] border border-border bg-card shadow-2xl outline-none"
       >
         {/* ── header ── */}
         <div className="border-b border-border px-5 pb-4 pt-4">
           <div className="flex items-center justify-between gap-3">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              Step <span className="font-mono text-primary">{step + 1}</span> of{" "}
-              <span className="font-mono">{STOPS.length}</span>
+            <div className="min-w-0 truncate text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              Step <span className="font-mono text-primary">{index + 1}</span> of{" "}
+              <span className="font-mono">{TOUR_STOPS.length}</span>
+              {/* The screen name, because the card and the thing it describes are
+                  now two different surfaces and the tie has to be said out loud. */}
+              <span className="text-text-muted"> · {stop.label}</span>
             </div>
             <button
               type="button"
               onClick={dismiss}
-              className="text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="shrink-0 text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               Skip ✕
             </button>
@@ -278,27 +361,27 @@ export function Tour({ open, onClose }: { open: boolean; onClose: () => void }) 
         {/* ── body ──
             Fixed minimum height so Back and Next do not walk up and down the
             screen between a three-line stop and a five-line one. */}
-        <div className="min-h-[132px] px-5 py-4 text-[14px] leading-relaxed text-muted-foreground">
+        <div className="min-h-[128px] px-5 py-4 text-[14px] leading-relaxed text-muted-foreground">
           {stop.body}
         </div>
 
         {/* ── dot rail ──
-            Jumping is allowed. Someone who wants stop five is telling you what
-            they came for, and making them click Next four times to get it is
+            Jumping is allowed. Someone who wants stop four is telling you what
+            they came for, and making them click Next three times to get it is
             the tour serving itself. */}
         <div className="flex items-center gap-1.5 px-5 pb-3.5">
-          {STOPS.map((entry, index) => (
+          {TOUR_STOPS.map((entry, i) => (
             <button
               key={entry.key}
               type="button"
-              onClick={() => setStep(index)}
-              aria-label={`Go to step ${index + 1}: ${entry.label}`}
-              aria-current={index === step ? "step" : undefined}
+              onClick={() => onStep(i)}
+              aria-label={`Go to step ${i + 1}: ${entry.label}`}
+              aria-current={i === index ? "step" : undefined}
               className={cx(
                 "h-1.5 rounded-full transition-colors",
-                index === step
+                i === index
                   ? "w-6 bg-primary"
-                  : index < step
+                  : i < index
                     ? "w-3 bg-emerald-500/40 hover:bg-emerald-500/70"
                     : "w-3 bg-border hover:bg-muted-foreground/50",
               )}
@@ -312,13 +395,13 @@ export function Tour({ open, onClose }: { open: boolean; onClose: () => void }) 
             Nothing is uploaded.
           </span>
           <span className="flex items-center gap-1.5">
-            {step > 0 ? (
-              <Button size="md" onClick={() => setStep(step - 1)}>
+            {index > 0 ? (
+              <Button size="md" onClick={() => onStep(index - 1)}>
                 ← Back
               </Button>
             ) : null}
-            {step < last ? (
-              <Button size="md" variant="primary" onClick={() => setStep(step + 1)}>
+            {index < last ? (
+              <Button size="md" variant="primary" onClick={() => onStep(index + 1)}>
                 Next →
               </Button>
             ) : (

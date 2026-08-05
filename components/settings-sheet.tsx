@@ -79,7 +79,19 @@ const NOTICE_CLASS: Record<string, string> = {
   muted: "border-border bg-card text-muted-foreground",
 };
 
-export function SettingsSheet({ onClose }: { onClose: () => void }) {
+export function SettingsSheet({
+  onClose,
+  /**
+   * Called after "delete everything", and required rather than optional: a wipe
+   * that only empties the store leaves the shell still believing you are a
+   * returning user. What that costs is documented at the call site and at
+   * `handleWipe` in `pipeline-app.tsx`.
+   */
+  onWipe,
+}: {
+  onClose: () => void;
+  onWipe: () => void;
+}) {
   const doc = usePipeline();
   const settings = doc.settings;
   const status = useStoreStatus();
@@ -742,6 +754,14 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
                     setOpenTrack(null);
                     setFormKey((k) => k + 1);
                     setNotice({ tone: "amber", text: "Everything cleared." });
+                    // Last, and not optional: the store wipes the document, but
+                    // "have you been here before" is answered by state the store
+                    // has never heard of — the shell's first-run latch and the
+                    // tour-seen flag. Without this the app comes back empty and
+                    // still convinced you are a returning user, which is how a
+                    // from-scratch run lost its setup and its tour. The shell
+                    // closes this sheet in response.
+                    onWipe();
                   }}
                 >
                   Yes, delete everything

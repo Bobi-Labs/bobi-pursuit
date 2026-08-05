@@ -16,18 +16,20 @@ export const APP_NAME = "Bobi-Pursuit";
  * to post anywhere else even if we wanted to. Intake therefore has to live on
  * a normal web page elsewhere, exactly as Bobi Tracker does it.
  *
- * ⚠️ NULL ON PURPOSE, and the control does not render while it is null.
+ * The page belongs to bobilabs.dev, and reports arrive tagged
+ * `[Bobi-Pursuit Bug]` / `[Bobi-Pursuit Idea]` from a per-product registry.
+ * That registry exists because the relay previously hardcoded Bobi Tracker as
+ * the sender, so the first Pursuit report would have arrived wearing another
+ * product's name; the route now refuses an unknown product rather than
+ * defaulting to one. Reports also persist to a table, so a report is a record
+ * rather than only an email.
  *
- * The intake page for Pursuit does not exist yet. It is a ruled, dispatched job
- * on bobilabs-dev (2026-08-02): one relay serving several products, with a
- * `product` label carried end to end. That label matters here — the relay's
- * `FROM` is currently hardcoded to "Bobi Tracker Feedback", so the first Pursuit
- * report to land would arrive wearing the wrong product's name.
- *
- * Shipping a button that 404s is worse than shipping no button, so this stays
- * null until that page is live. Then it is one line, and the control appears.
+ * The type stays `string | null` and the control stays conditional: a fork with
+ * no intake of its own sets this to null and the button disappears rather than
+ * pointing strangers at ours.
  */
-export const FEEDBACK_URL: string | null = null;
+export const FEEDBACK_URL: string | null =
+  "https://bobilabs.dev/feedback/bobi-pursuit";
 
 /** Public source. The extension lives under `extension/` in the same repo. */
 export const REPO_URL = "https://github.com/Bobi-Labs/bobi-pursuit";

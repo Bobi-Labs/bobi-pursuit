@@ -19,6 +19,14 @@
  * The fourth thing it refuses to do is trap you. Every step carries "just show
  * me", which loads the sample pipeline and gets out of the way.
  *
+ * ⚠️ **There is exactly one way out of this screen: `leave()`.** Three buttons
+ * reach it — finish, "Skip setup" in the header, and the sample-data escape in
+ * the footer — and none of them may call `onClose` directly. The parent hands
+ * over to the first-run tour on close, and the version of this file that let
+ * each exit call the callback itself is the shape that loses that handover the
+ * moment a fourth exit is added. One funnel, one call site, and every exit
+ * inherits whatever the parent decides to do next for free.
+ *
  * Nothing here touches storage during render: `profileFromPreset()` mints ids,
  * so it is only ever called from a click handler.
  */
@@ -51,7 +59,12 @@ const STEPS = [
   { n: 3, label: "How they're read" },
 ];
 
-export function Onboarding({ onDone }: { onDone: () => void }) {
+/**
+ * `onClose` rather than `onDone`: the parent gets the same call whether you
+ * finished, skipped, or bailed to the sample data, and a prop named for
+ * completion is an invitation to wire only the completion path to it.
+ */
+export function Onboarding({ onClose }: { onClose: () => void }) {
   const [step, setStep] = useState(1);
   const [picked, setPicked] = useState<Picked[]>([]);
   const [apiKey, setApiKey] = useState("");
@@ -87,10 +100,25 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     store.updateSettings({ profiles: picked.map((entry) => entry.profile) });
   }
 
-  function showMeTheSample() {
+  /**
+   * The only exit. `then` is whatever this particular door does on the way out,
+   * and it runs *after* the tracks are committed on purpose: `loadSample()`
+   * scores its jobs against whatever settings are live at the moment it runs, so
+   * committing second would seed the board against the track the user just
+   * replaced.
+   *
+   * Committing on every exit, including the skips, is also deliberate.
+   * Discarding a track someone just wrote as the price of leaving a wizard is
+   * rude.
+   */
+  function leave(then?: () => void) {
     commitTracks();
-    store.loadSample();
-    onDone();
+    then?.();
+    onClose();
+  }
+
+  function showMeTheSample() {
+    leave(() => store.loadSample());
   }
 
   async function runTestKey() {
@@ -108,10 +136,10 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   }
 
   function finish() {
-    commitTracks();
-    const key = apiKey.trim();
-    if (key) store.updateSettings({ anthropicApiKey: key });
-    onDone();
+    leave(() => {
+      const key = apiKey.trim();
+      if (key) store.updateSettings({ anthropicApiKey: key });
+    });
   }
 
   return (
@@ -134,16 +162,10 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               nothing uploaded — it all stays in this browser.
             </p>
           </div>
-          {/* Skipping keeps whatever you already picked. Discarding a track
-              someone just wrote as the price of leaving a wizard is rude. */}
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              commitTracks();
-              onDone();
-            }}
-          >
+          {/* Through `leave()` like every other exit — see the file header. This
+              is the door a sceptical first-run user is most likely to take, so
+              it is the one that must not skip the handover. */}
+          <Button size="sm" variant="ghost" onClick={() => leave()}>
             Skip setup ✕
           </Button>
         </div>

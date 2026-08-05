@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * The studio shell — header, folder tabs, three panels, status line.
+ * The studio shell — header, folder tabs, four panels, status line.
  *
  * This is the same surface as the self-hosted Bobi dashboard, at a different
  * price point: the banner, the raised folder tabs, the kanban, the Job Studio
@@ -22,9 +22,23 @@
  * View state lives here (tab, selection, filters, which sheet is open). Data
  * mutations go through the store singleton. There is no context and no provider,
  * because there is exactly one document per tab.
+ *
+ * Each tab is also a real URL — see `TAB_PATH`. Four route folders under `app/`
+ * become four real HTML files at build time, so a reload of `/pipeline/` lands
+ * on the board instead of bouncing to Overview, and a link to it is a link that
+ * works. Switching tabs is a client-side `router.push`, which leaves the store
+ * singleton (module-level, see `lib/store/store.ts`) exactly where it was: no
+ * refetch, no reparse of localStorage, no flicker.
+ *
+ * Two movers, and the difference is whose idea the move was. `goTab` is a click
+ * you made, so it pushes. `showTab` is the first-run tour walking you across
+ * four tabs on its own initiative, so it replaces — four history entries nobody
+ * asked for, sitting between the user and wherever they came from, is a worse
+ * bug than the one the tour is there to prevent.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 
 import { parseCaptureParams, type CaptureParams } from "@/lib/capture";
 import { matchedLabels } from "@/lib/profile-view";
@@ -34,13 +48,13 @@ import { usePipeline, useStoreStatus } from "@/lib/store/use-pipeline";
 import { STARTER_PROFILE_ID, type Job, type PipelineStatus, type Profile } from "@/lib/types";
 
 import { AddJobSheet, type AddResult, type NewJobInput } from "./add-job-sheet";
-import { HowItWorksSheet } from "./how-it-works";
+import { HowItWorksPanel, HowItWorksSheet } from "./how-it-works";
 import { JobCard } from "./job-card";
 import { JobStudioPanel } from "./job-detail";
 import { Onboarding } from "./onboarding";
 import { OverviewPanel } from "./overview-panel";
 import { SettingsSheet } from "./settings-sheet";
-import { Tour, shouldShowTour } from "./tour";
+import { TOUR_STOPS, Tour, resetTourSeen, shouldShowTour } from "./tour";
 import { FEEDBACK_URL } from "@/lib/app-config";
 import {
   Button,
@@ -61,7 +75,7 @@ import {
   type FolderTab,
 } from "./ui";
 
-type TabKey = "overview" | "pipeline" | "studio";
+export type TabKey = "overview" | "pipeline" | "studio" | "howitworks";
 type View = "kanban" | "table";
 type SortKey = "fit" | "newest";
 type BoardStatus = Exclude<PipelineStatus, "ignored">;
@@ -70,7 +84,114 @@ const TABS: FolderTab<TabKey>[] = [
   { key: "overview", label: "Overview" },
   { key: "pipeline", label: "Pipeline" },
   { key: "studio", label: "Job Studio" },
+  { key: "howitworks", label: "How it works" },
 ];
+
+/**
+ * Tab → URL. One row per tab, and the only place a route string is written.
+ *
+ * Trailing slashes are deliberate: `next.config.mjs` sets `trailingSlash: true`,
+ * so the export writes `out/pipeline/index.html`, and `/pipeline/` is the form
+ * that resolves on a bare static host with nothing in front of it to redirect.
+ * `studio` lives at `/jobstudio/` because that is the address that was asked
+ * for; the tab key stays `studio` so nothing else in this file has to change.
+ */
+const TAB_PATH: Record<TabKey, string> = {
+  overview: "/",
+  pipeline: "/pipeline/",
+  studio: "/jobstudio/",
+  howitworks: "/howitworks/",
+};
+
+/** `"/pipeline/"` and `"/pipeline"` are the same route; `"/"` stays `"/"`. */
+function normalizePath(pathname: string): string {
+  return pathname.replace(/\/+$/, "") || "/";
+}
+
+const PATH_TAB = new Map<string, TabKey>(
+  (Object.keys(TAB_PATH) as TabKey[]).map((key) => [
+    normalizePath(TAB_PATH[key]),
+    key,
+  ]),
+);
+
+/* ── view state that outlives a route change ────────────────────────────────
+ *
+ * Now that every tab is its own route, the App Router mounts a *fresh* shell for
+ * each one — same component, different segment, so React drops the old tree and
+ * every `useState` below goes back to its initial value. The document does not
+ * notice, because the store is a module-level singleton; this object exists so
+ * that the handful of view fields which would otherwise break something do not
+ * notice either. Verified in a browser, not assumed: without it, clicking a job
+ * card navigated to a Job Studio that said "No job open", and the first-run
+ * wizard reopened on every tab click.
+ *
+ * `selectedId` is the one that is not optional — opening a card sets it and then
+ * navigates to `/jobstudio/`. The filters are here because coming back from
+ * Overview to a board you had narrowed, wide open again, reads as the app losing
+ * your place.
+ *
+ * Deliberately NOT here: which sheet is open (a dialog that reopens itself after
+ * a navigation is a bug, not a courtesy), and the in-flight scoring state — its
+ * `AbortController` dies with the tree, so a restored spinner would be spinning
+ * for a request nobody is waiting on.
+ *
+ * Module scope rather than `sessionStorage`, because this is read during render
+ * and `output: 'export'` renders in Node at build time, where no browser storage
+ * exists. Nothing mutates it during render, so all four pages prerender from
+ * these defaults and hydration agrees.
+ */
+interface ViewSession {
+  selectedId: string | null;
+  view: View;
+  sub: "working" | "ignored";
+  query: string;
+  track: string;
+  minFit: number;
+  sort: SortKey;
+  /**
+   * Latched the first time storage answers, and never re-asked — except by a
+   * deliberate wipe, which re-arms it. See `handleWipe`.
+   */
+  onboardingSettled: boolean;
+  /**
+   * The tour, both fields, for the reason this object exists at all: the tour
+   * now walks you across four tabs, every one of those is a route change, and a
+   * route change remounts this shell. Held here, the tour survives its own
+   * navigation. Held in `useState`, it would be wiped by its own second step and
+   * restart at stop one forever.
+   */
+  tourOpen: boolean;
+  tourStep: number;
+}
+
+const session: ViewSession = {
+  selectedId: null,
+  view: "kanban",
+  sub: "working",
+  query: "",
+  track: "all",
+  minFit: 0,
+  sort: "fit",
+  onboardingSettled: false,
+  tourOpen: false,
+  tourStep: 0,
+};
+
+/** `useState`, except the value survives the remount a route change causes. */
+function useSessionState<K extends keyof ViewSession>(
+  key: K,
+): [ViewSession[K], (next: ViewSession[K]) => void] {
+  const [value, setValue] = useState<ViewSession[K]>(session[key]);
+  const set = useCallback(
+    (next: ViewSession[K]) => {
+      session[key] = next;
+      setValue(next);
+    },
+    [key],
+  );
+  return [value, set];
+}
 
 const COLUMNS: { status: BoardStatus; label: string; hint: string }[] = [
   { status: "triage", label: "Triage", hint: "Everything new. Decide, don’t read." },
@@ -88,34 +209,82 @@ const STATUS_TONE = {
 /** Query params the capture link owns. Scrubbed after use so a refresh is inert. */
 const CAPTURE_PARAMS = ["add", "t", "u", "d", "b", "s", "c"];
 
-export default function PipelineApp() {
+export default function PipelineApp({
+  /**
+   * Which tab this route opens on. Supplied by the four page files under `app/`,
+   * so a cold load of `/pipeline/` renders the board in its first frame rather
+   * than painting Overview and then correcting itself.
+   */
+  initialTab = "overview",
+}: {
+  initialTab?: TabKey;
+}) {
   const doc = usePipeline();
   const status = useStoreStatus();
   const profiles = doc.settings.profiles;
+  const router = useRouter();
+  const pathname = usePathname();
 
-  const [tab, setTab] = useState<TabKey>("overview");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [view, setView] = useState<View>("kanban");
-  const [sub, setSub] = useState<"working" | "ignored">("working");
-  const [query, setQuery] = useState("");
-  const [track, setTrack] = useState<string>("all");
-  const [minFit, setMinFit] = useState(0);
-  const [sort, setSort] = useState<SortKey>("fit");
+  /**
+   * The tab is held locally *and* derived from the URL, and the two disagree for
+   * exactly one moment: between a click and the router committing the push.
+   * Local state is what makes the click feel instant; the URL is the authority,
+   * because Back and Forward change it without ever running a click handler.
+   */
+  const [tab, setTab] = useState<TabKey>(initialTab);
+  const routeTab = PATH_TAB.get(normalizePath(pathname)) ?? initialTab;
+  useEffect(() => {
+    // Setting the value it already holds bails out inside React, so the common
+    // case (this effect running right after our own push lands) costs nothing.
+    setTab(routeTab);
+  }, [routeTab]);
+
+  /** Switch tab now, change the address after. Never the other way round. */
+  const goTab = useCallback(
+    (next: TabKey) => {
+      setTab(next);
+      router.push(TAB_PATH[next]);
+    },
+    [router],
+  );
+
+  /**
+   * The tour's version: change the panel, leave the address bar alone.
+   *
+   * ⚠️ This deliberately does NOT route, and that is load-bearing rather than a
+   * simplification. It used to call `router.replace`, and under `output: 'export'`
+   * that is a full document load, not a client-side transition — the RSC payload
+   * a soft navigation needs is not there to fetch, so the router falls back to
+   * hard navigation. A full load re-evaluates this module, which resets
+   * `session` to its initial literal, which un-latches `onboardingSettled`,
+   * which re-runs the first-run effect, which calls `startTour()` again at step
+   * 0, which navigates to stop 1's tab, which loads the document again. The tour
+   * ran 1, 2, 1, 2 forever and never reached stop 3.
+   *
+   * The tour's job is to put the right SCREEN behind the card. It was never to
+   * demonstrate URLs, so swapping the panel in place satisfies it completely and
+   * removes a whole class of state-loss bug with it. Tab clicks still route; see
+   * `goTab`.
+   */
+  const showTab = useCallback((next: TabKey) => {
+    setTab(next);
+  }, []);
+
+  /* Everything down to `sort` outlives a route change — see `ViewSession`. */
+  const [selectedId, setSelectedId] = useSessionState("selectedId");
+  const [view, setView] = useSessionState("view");
+  const [sub, setSub] = useSessionState("sub");
+  const [query, setQuery] = useSessionState("query");
+  const [track, setTrack] = useSessionState("track");
+  const [minFit, setMinFit] = useSessionState("minFit");
+  const [sort, setSort] = useSessionState("sort");
   const [addOpen, setAddOpen] = useState(false);
   const [prefill, setPrefill] = useState<CaptureParams | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [howOpen, setHowOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
-  const [tourOpen, setTourOpen] = useState(false);
-  /**
-   * First run is decided **once**, the moment storage answers, and never again.
-   *
-   * The obvious version — deriving "is this a fresh document?" on every render —
-   * unmounts itself halfway through: step 1 commits the user's tracks, the
-   * document stops looking fresh, and the wizard vanishes mid-sentence. Latching
-   * it behind a ref is what makes the flow survive its own first side effect.
-   */
-  const onboardingSettled = useRef(false);
+  const [tourOpen, setTourOpen] = useSessionState("tourOpen");
+  const [tourStep, setTourStep] = useSessionState("tourStep");
   /* Tier 2, one job at a time. The id (not a boolean) so switching jobs mid-call
      cannot leave a second panel showing a pending state that isn't its own. */
   const [scoringId, setScoringId] = useState<string | null>(null);
@@ -140,7 +309,7 @@ export default function PipelineApp() {
     setAddOpen(true);
     // Someone arriving with a job in hand has answered the "what is this"
     // question by doing it. Setup would be in the way.
-    onboardingSettled.current = true;
+    session.onboardingSettled = true;
 
     // Scrub the handoff out of the address bar. Without this, a refresh (or a
     // restored tab) re-opens the sheet with the same posting forever.
@@ -212,15 +381,21 @@ export default function PipelineApp() {
 
   /* ── mutations ── */
 
-  const openJob = useCallback((id: string) => {
-    setSelectedId(id);
-    setTab("studio");
-  }, []);
+  const openJob = useCallback(
+    (id: string) => {
+      setSelectedId(id);
+      goTab("studio");
+    },
+    [goTab],
+  );
 
-  const goPipeline = useCallback((stage?: PipelineStatus) => {
-    setTab("pipeline");
-    setSub(stage === "ignored" ? "ignored" : "working");
-  }, []);
+  const goPipeline = useCallback(
+    (stage?: PipelineStatus) => {
+      goTab("pipeline");
+      setSub(stage === "ignored" ? "ignored" : "working");
+    },
+    [goTab],
+  );
 
   const handleAdd = useCallback((input: NewJobInput): AddResult => {
     const existing = input.url.trim() ? store.findByUrl(input.url) : undefined;
@@ -258,19 +433,107 @@ export default function PipelineApp() {
     setMinFit(0);
   };
 
-  /* First run: a loaded, empty document still carrying the shipped starter
-     track. Evaluated once — see `onboardingSettled` — so nothing needs a
-     "you have seen this" flag in storage, and picking your tracks in step 1
-     does not yank the wizard out from under you. */
+  /* ── the tour ─────────────────────────────────────────────────────────── */
+
+  /**
+   * Open the tour at stop one, if this browser has never seen it.
+   *
+   * The `shouldShowTour()` check lives here rather than at each call site so the
+   * two entry points below cannot disagree about it, and so a third one added
+   * later inherits it. It reads `localStorage`, so both callers are effects or
+   * click handlers, never render.
+   */
+  const startTour = useCallback(() => {
+    if (!shouldShowTour()) return;
+    setTourStep(0);
+    setTourOpen(true);
+  }, [setTourStep, setTourOpen]);
+
+  /**
+   * The tour drives the address bar.
+   *
+   * Each stop names the tab it is about and this puts that tab on screen behind
+   * the card. Without it the tour is five boxes read over one unchanging page,
+   * which is what the operator called useless, and fairly: a stop about the
+   * Pipeline that never shows you the Pipeline is a paragraph, not a tour.
+   *
+   * No loop risk: `showTab` sets `tab` synchronously, so the next run of this
+   * effect finds them equal and does nothing.
+   */
   useEffect(() => {
-    if (onboardingSettled.current || !status.loaded) return;
-    onboardingSettled.current = true;
+    if (!tourOpen) return;
+    const wanted = TOUR_STOPS[Math.min(tourStep, TOUR_STOPS.length - 1)].tab;
+    if (wanted !== tab) showTab(wanted);
+  }, [tourOpen, tourStep, tab, showTab]);
+
+  /**
+   * ⚠️ The one place that knows "onboarding closed, so show the tour".
+   *
+   * Onboarding has three doors and every one of them now closes through this
+   * single prop (see the header of `onboarding.tsx`). Chaining the tour off
+   * "finished" alone was the shape that broke: the two doors a sceptical first
+   * run is most likely to take, "Skip setup" and the sample-data escape, are
+   * exactly the ones that would have missed it. Keeping the decision here rather
+   * than at each exit is what stops the next door from missing it too.
+   *
+   * Chained, not concurrent: both are z-50 overlays and a fresh browser
+   * satisfies the trigger for each, so opening them independently would stack
+   * them.
+   */
+  const closeOnboarding = useCallback(() => {
+    setOnboardingOpen(false);
+    startTour();
+  }, [startTour]);
+
+  /**
+   * "Delete everything" in Settings means everything, including the two flags
+   * that make a first visit a first visit.
+   *
+   * This is the bug behind "I cleared the data and the tour was gone". The wipe
+   * empties the document, but the first-run latch is module state that no wipe
+   * touches and the tour-seen flag is a separate `localStorage` key that no wipe
+   * touches, so the app came back convinced you had already been here: no setup,
+   * no tour, and an empty board with no explanation. It was never reachable from
+   * inside onboarding, because onboarding never opened.
+   *
+   * Re-arming the latch lets the first-run effect fire again on the now-empty
+   * document, which reopens setup, which hands over to the tour. Settings closes
+   * with it, because the wizard is about to cover the screen and a settings
+   * panel left open underneath is two modals deep.
+   */
+  const handleWipe = useCallback(() => {
+    setSettingsOpen(false);
+    resetTourSeen();
+    session.onboardingSettled = false;
+  }, []);
+
+  /**
+   * First run: a loaded, empty document still carrying the shipped starter
+   * track. Decided **once**, the moment storage answers, and never again.
+   *
+   * The obvious version — deriving "is this a fresh document?" on every render —
+   * unmounts itself halfway through: step 1 commits the user's tracks, the
+   * document stops looking fresh, and the wizard vanishes mid-sentence. The
+   * latch is what makes the flow survive its own first side effect, and it lives
+   * in `session` rather than a ref because a route change throws refs away too —
+   * a user who skipped setup got the wizard back on their next tab click.
+   */
+  useEffect(() => {
+    if (session.onboardingSettled || !status.loaded) return;
+    session.onboardingSettled = true;
     const firstRun =
       doc.jobs.length === 0 &&
       profiles.length === 1 &&
       profiles[0].id === STARTER_PROFILE_ID;
-    if (firstRun) setOnboardingOpen(true);
-  }, [status.loaded, doc.jobs.length, profiles]);
+    if (firstRun) {
+      setOnboardingOpen(true);
+      return; // every exit from onboarding hands over — see `closeOnboarding`
+    }
+    // Everyone else: anyone already holding a board never opens onboarding, so
+    // without this they would never see the tour at all. That is most existing
+    // users, and it was the first thing the operator hit after the tour shipped.
+    startTour();
+  }, [status.loaded, doc.jobs.length, profiles, startTour]);
 
   return (
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
@@ -324,10 +587,16 @@ export default function PipelineApp() {
           tabs={TABS}
           active={tab}
           counts={{ pipeline: working.length }}
-          onChange={setTab}
+          onChange={goTab}
         />
         <FolderPanel className="min-h-[680px]">
-          {!status.loaded ? (
+          {tab === "howitworks" ? (
+            // Ahead of the `loaded` gate on purpose: this tab reads no document
+            // state, and the skeleton exists to stop an empty board flashing in
+            // front of someone who has two hundred jobs. There is no board here
+            // to flash, so waiting on storage would be a spinner for nothing.
+            <HowItWorksPanel />
+          ) : !status.loaded ? (
             <Skeleton />
           ) : tab === "overview" ? (
             <OverviewPanel
@@ -370,7 +639,7 @@ export default function PipelineApp() {
               key={selected?.id ?? "empty"}
               job={selected}
               profiles={profiles}
-              onGoPipeline={() => setTab("pipeline")}
+              onGoPipeline={() => goTab("pipeline")}
               onStatus={(next) =>
                 selected && store.setPipelineStatus(selected.id, next)
               }
@@ -379,7 +648,7 @@ export default function PipelineApp() {
                 if (!selected) return;
                 store.deleteJob(selected.id);
                 setSelectedId(null);
-                setTab("pipeline");
+                goTab("pipeline");
               }}
               canScoreWithClaude={doc.settings.anthropicApiKey.trim() !== ""}
               scoring={selected != null && scoringId === selected.id}
@@ -432,25 +701,28 @@ export default function PipelineApp() {
         />
       ) : null}
 
-      {settingsOpen ? <SettingsSheet onClose={() => setSettingsOpen(false)} /> : null}
-      {howOpen ? <HowItWorksSheet onClose={() => setHowOpen(false)} /> : null}
-      {onboardingOpen ? (
-        <Onboarding
-          onDone={() => {
-            setOnboardingOpen(false);
-            // Hand straight over to the tour rather than dropping someone on a
-            // board they have never seen. Chained, not concurrent: both are
-            // z-50 overlays and a fresh browser satisfies the trigger for each,
-            // so opening them independently would stack them.
-            if (shouldShowTour()) setTourOpen(true);
-          }}
+      {settingsOpen ? (
+        <SettingsSheet
+          onClose={() => setSettingsOpen(false)}
+          onWipe={handleWipe}
         />
       ) : null}
+      {howOpen ? <HowItWorksSheet onClose={() => setHowOpen(false)} /> : null}
+      {onboardingOpen ? <Onboarding onClose={closeOnboarding} /> : null}
 
-      {/* Returning users who never saw the tour get it on their next visit;
-          `shouldShowTour` is read in an effect because this is a static export
-          that still prerenders, and localStorage does not exist there. */}
-      <Tour open={tourOpen} onClose={() => setTourOpen(false)} />
+      {/* Opened from two places, both of them `startTour`: chained off any exit
+          from onboarding for a first run, and from the first-run effect above
+          for everyone who already has a board. `open` and `step` are held in
+          `session` because each stop navigates and each navigation remounts this
+          shell; `shouldShowTour` is only ever read inside an effect, because
+          this is a static export that still prerenders and localStorage is
+          absent there. */}
+      <Tour
+        open={tourOpen}
+        step={tourStep}
+        onStep={setTourStep}
+        onClose={() => setTourOpen(false)}
+      />
     </div>
   );
 }

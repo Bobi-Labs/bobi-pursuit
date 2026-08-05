@@ -3,10 +3,15 @@
 /**
  * "What is this, and how does it work?"
  *
- * One explainer, two surfaces: a panel that sits at the bottom of Overview for
- * someone who has just landed, and a sheet reachable from the header forever
- * after. Both render the same words, because a product that explains itself
- * differently in two places is a product with two stories.
+ * One explainer, two surfaces: the "How it works" tab at `/howitworks/`, and a
+ * sheet reachable from the header on every other tab. Both render the same
+ * words, because a product that explains itself differently in two places is a
+ * product with two stories.
+ *
+ * The panel used to hang off the bottom of Overview instead of owning a tab.
+ * Moving it did not fork it — `Body` is still the only description of this
+ * product anywhere, and the header sheet still reaches it from wherever you are,
+ * because a route is a worse answer than a button when you are mid-triage.
  *
  * The tone rule here is the whole point: **say what it does not do, first and
  * plainly.** This tier cannot scrape job boards, and the reason is physics
@@ -21,7 +26,15 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import { Button, ColorBadge, PanelCard, SectionLabel, Sheet, cx } from "./ui";
+import {
+  Button,
+  ColorBadge,
+  PanelCard,
+  PanelHeader,
+  SectionLabel,
+  Sheet,
+  cx,
+} from "./ui";
 
 /**
  * Where the browser extension lives.
@@ -318,20 +331,22 @@ function Body({ dense = false }: { dense?: boolean }) {
 
 /* ─────────────────────────────── Surfaces ─────────────────────────────── */
 
-/** The Overview panel's inline explainer. */
+/**
+ * The "How it works" tab. Wears `PanelHeader` like Overview, Pipeline and Job
+ * Studio do, so a tab that happens to be prose still reads as the same product.
+ *
+ * Not `dense`: this is a full-width panel, so the three-across grids get the
+ * room they were drawn for. The sheet keeps `dense` because it renders in a
+ * column where three cards would each be a sliver.
+ */
 export function HowItWorksPanel() {
   return (
-    <div className="rounded-[10px] border border-border bg-muted/20 p-4">
-      <div className="mb-3">
-        <h3 className="text-base font-bold -tracking-[0.01em]">
-          How Bobi·Pursuit works
-        </h3>
-        <div className="mt-0.5 text-[14px] text-muted-foreground">
-          Ninety seconds, and it is all true of the free tier you are using right
-          now.
-        </div>
-      </div>
-      <Body dense />
+    <div>
+      <PanelHeader
+        title="How Bobi·Pursuit works"
+        sub="Ninety seconds: what it is, what it will not do, where your data lives, and what the next step up adds. All of it true of the free tier you are using right now."
+      />
+      <Body />
     </div>
   );
 }

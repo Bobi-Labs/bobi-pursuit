@@ -417,6 +417,83 @@ export function HintCard({
 }
 
 /** The one-line "nothing here yet" a panel shows instead of an empty grid. */
+/**
+ * A short path, drawn as boxes with arrows between them.
+ *
+ * This exists because a paragraph is the wrong shape for a sequence. The
+ * onboarding used to explain capture like this:
+ *
+ *   "By capture — a click on a posting you are already reading. The extension
+ *    is the front door; the bookmarklet works everywhere; the add form is
+ *    always there. Whichever you use, the job is scored on the way in and the
+ *    same posting captured twice stays one card."
+ *
+ * Forty-eight words, three alternatives, and no order — the reader has to build
+ * the sequence themselves before they can follow it. The same content as
+ * `Get plugin → Open a job post → Click Add in the sidebar → See it in Pipeline`
+ * is glanceable, and the operator's note was exactly that: people read snippets,
+ * a paragraph explaining loses the attention.
+ *
+ * Wraps to a column on narrow screens, where the arrows turn to point down.
+ */
+export function Steps({ steps }: { steps: readonly string[] }) {
+  return (
+    <ol className="flex flex-col gap-1.5 sm:flex-row sm:items-stretch sm:gap-0">
+      {steps.map((step, i) => (
+        <li key={step} className="flex items-center gap-1.5 sm:flex-1">
+          <div className="flex min-h-[46px] w-full items-center justify-center rounded-[10px] border border-border bg-card px-2.5 py-2 text-center text-[13px] font-semibold leading-snug text-foreground">
+            {step}
+          </div>
+          {i < steps.length - 1 ? (
+            <span
+              aria-hidden
+              className="shrink-0 px-1 text-[13px] font-bold text-muted-foreground"
+            >
+              <span className="sm:hidden">↓</span>
+              <span className="hidden sm:inline">→</span>
+            </span>
+          ) : null}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/**
+ * Detail that is true, occasionally load-bearing, and not worth the space it
+ * costs on first read.
+ *
+ * The operator's standing instruction, and it is a good default rather than a
+ * one-off: **wherever the instinct is "we need to have that info", an expander
+ * beats prose on the page.** The information survives for the person who wants
+ * it; the person who does not gets a screen they can scan.
+ *
+ * Closed by default and deliberately never `open` — a disclosure that starts
+ * open is a paragraph wearing a triangle, and reintroduces exactly the wall of
+ * words it was added to remove.
+ */
+export function MoreInfo({
+  label = "What is this?",
+  children,
+}: {
+  label?: string;
+  children: ReactNode;
+}) {
+  return (
+    <details className="group rounded-[10px] border border-border bg-card px-3 py-2">
+      <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[13px] font-semibold text-muted-foreground transition-colors hover:text-foreground">
+        <span className="inline-block text-[11px] transition-transform group-open:rotate-90">
+          ▶
+        </span>
+        {label}
+      </summary>
+      <div className="mt-2 text-[14px] leading-relaxed text-muted-foreground">
+        {children}
+      </div>
+    </details>
+  );
+}
+
 export function EmptyMini({ text }: { text: string }) {
   return (
     <div className="py-10 text-center text-[14px] text-muted-foreground">

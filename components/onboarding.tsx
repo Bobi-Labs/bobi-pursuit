@@ -45,7 +45,17 @@ import {
 } from "@/lib/types";
 
 import { CaptureRoutes } from "./how-it-works";
-import { Button, ColorBadge, Field, HintCard, INPUT, PanelCard, cx } from "./ui";
+import {
+  Button,
+  ColorBadge,
+  Field,
+  HintCard,
+  INPUT,
+  MoreInfo,
+  PanelCard,
+  Steps,
+  cx,
+} from "./ui";
 
 interface Picked {
   /** Which preset it came from — the picker toggles on this, not on the id. */
@@ -425,23 +435,37 @@ function StepCapture() {
         <h2 className="text-[16px] font-bold -tracking-[0.01em]">
           How jobs get in
         </h2>
-        <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">
-          By capture — a click on a posting you are already reading. The
-          extension is the front door; the bookmarklet works everywhere; the add
-          form is always there. Whichever you use, the job is scored on the way
-          in and the same posting captured twice stays one card.
-        </p>
+        {/* The sequence replaces the paragraph that used to describe it. Three
+            interchangeable routes stated as prose made the reader assemble the
+            order themselves; one path stated as four boxes does not. The other
+            two routes still exist immediately below in CaptureRoutes. */}
+        <div className="mt-2.5">
+          <Steps
+            steps={[
+              "Get the plugin",
+              "Open a job post",
+              "Click Add in the sidebar",
+              "See it in Pipeline",
+            ]}
+          />
+        </div>
       </div>
 
-      {/* This step's one hint, and it goes on the missing feature rather than
-          on the intro above: "no scrapers" is the line a reader assumes is a
-          paywall, and only the technical reason answers that. It sits directly
-          on top of the capture routes because it is the argument for them. */}
+      {/* "No scrapers" is the line a reader assumes is a paywall, so the
+          technical reason has to be reachable — but it is a wall of words on a
+          screen someone is trying to get past, so it is one line with the
+          detail behind a disclosure. */}
       <HintCard title="Not a paywall">
-        There are no scrapers in this tier. A page running in your browser
-        cannot fetch a job board&apos;s HTML, and the boards block datacenter
-        IPs, so scraping needs a server this app deliberately does not have.
-        Capture is the honest version: nothing reads a page until you click.
+        Nothing here scrapes job boards, and that is a browser limit rather than
+        a locked feature.
+        <div className="mt-2">
+          <MoreInfo label="Why not?">
+            A page running in your browser cannot fetch a job board&apos;s HTML —
+            the browser blocks it cross-origin — and the boards block datacenter
+            IPs, so scraping needs a server this app deliberately does not have.
+            Capture is the honest version: nothing reads a page until you click.
+          </MoreInfo>
+        </div>
       </HintCard>
 
       <CaptureRoutes />
@@ -470,39 +494,63 @@ function StepKey({
         <h2 className="text-[16px] font-bold -tracking-[0.01em]">
           Want it to actually read the jobs?
         </h2>
-        <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">
-          Optional, and skipping it costs you nothing — the app is fully usable
-          without a key. Here is the honest difference.
-        </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
-        <PanelCard>
-          <div className="mb-1 flex items-center gap-1.5">
-            <span className="text-[14px] font-bold">Without a key</span>
+      {/* Two paths, each as a row of steps, because the choice is between two
+          sequences rather than between two paragraphs. The cost, the privacy
+          terms and the honest limitation of each are all still here — they are
+          behind the disclosures, which is where detail belongs on a screen
+          someone is trying to get through. */}
+      <div className="space-y-3">
+        <div>
+          <div className="mb-1.5 flex items-center gap-1.5">
+            <span className="text-[14px] font-bold">Method 1</span>
             <ColorBadge tone="green">default</ColorBadge>
           </div>
-          <p className="text-[14px] leading-relaxed text-muted-foreground">
-            We match your <span className="font-semibold text-foreground">keywords</span>{" "}
-            — literally, instantly, offline, and with every signal that moved the
-            number written out so you can argue with it. It is genuinely useful
-            and it is genuinely dumb: it cannot tell a “senior product designer”
-            from “senior developer, product team”.
-          </p>
-        </PanelCard>
-        <PanelCard className="border-violet-500/30 bg-violet-500/[0.05]">
-          <div className="mb-1 flex items-center gap-1.5">
-            <span className="text-[14px] font-bold">With your own key</span>
+          <Steps
+            steps={[
+              "Open Pursuit",
+              "Run the plugin",
+              "Add jobs",
+              "Pursuit rates them",
+            ]}
+          />
+          <div className="mt-2">
+            <MoreInfo label="What does Pursuit's own rating do?">
+              It matches your <span className="font-semibold text-foreground">keywords</span>{" "}
+              — literally, instantly, offline, and with every signal that moved
+              the number written out so you can argue with it. Genuinely useful
+              and genuinely dumb: it cannot tell a “senior product designer”
+              from “senior developer, product team”.
+            </MoreInfo>
+          </div>
+        </div>
+
+        <div>
+          <div className="mb-1.5 flex items-center gap-1.5">
+            <span className="text-[14px] font-bold">Method 2</span>
             <ColorBadge tone="purple">better</ColorBadge>
           </div>
-          <p className="text-[14px] leading-relaxed text-muted-foreground">
-            Claude reads the whole posting against the{" "}
-            <span className="font-semibold text-foreground">description</span> you
-            just wrote and produces its own reasoning for each track. Under $0.01
-            a job, billed to you by Anthropic. The key is stored in this browser,
-            sent only to api.anthropic.com, and stripped out of every export.
-          </p>
-        </PanelCard>
+          <Steps
+            steps={[
+              "Add a Claude key",
+              "Run the plugin",
+              "Add jobs",
+              "Claude adds full reasoning",
+            ]}
+          />
+          <div className="mt-2">
+            <MoreInfo label="What does the key cost, and where does it go?">
+              Claude reads the whole posting against the{" "}
+              <span className="font-semibold text-foreground">description</span>{" "}
+              you just wrote and produces its own reasoning for each track. Under
+              $0.01 a job, billed to you by Anthropic — we bill nothing. The key
+              is stored in this browser, sent only to api.anthropic.com, and
+              stripped out of every export. Skipping it costs you nothing: the
+              app is fully usable without one.
+            </MoreInfo>
+          </div>
+        </div>
       </div>
 
       <Field

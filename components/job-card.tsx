@@ -53,7 +53,13 @@ const ACTIONS: Record<PipelineStatus, Action[]> = {
   promoted: [
     {
       to: "applied",
-      label: "✓ Applied",
+      // "✓ Applied" read as a label rather than a button: a card sitting in
+      // Promoted appeared to be claiming the job had been applied to. Every
+      // other action here is a verb — Promote, Skip, Undo, Restore — and this
+      // was the only past-tense one, wearing a tick that made it look like
+      // state. The board's whole promise is that nothing moves on its own, so a
+      // control that looks like it already moved is the worst possible slip.
+      label: "Mark applied",
       variant: "primary",
       title: "You sent it — move to Applied",
     },

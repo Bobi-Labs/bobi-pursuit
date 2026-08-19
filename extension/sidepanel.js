@@ -101,9 +101,34 @@ async function activeTab() {
 const capturable = (u) => !!u && /^https?:\/\//i.test(u);
 const fitTone = (n) => (n == null ? "" : n >= 70 ? "ok" : n >= 40 ? "warn" : "err");
 
+/**
+ * The page the visible result card is *about*.
+ *
+ * Without this the card outlived its subject. "Sent to Bobi-Pursuit" is
+ * rendered into `els.result`, and `refreshTab` rewrote the title, the URL and
+ * the button on every tab change while leaving the result untouched — so after
+ * capturing a job and moving on you were looking at some unrelated page's title
+ * with a success message from a different page sitting underneath it. The
+ * operator's words: it is not clear if it did, or what it thinks it did.
+ *
+ * Clearing on *every* tab event would be the obvious fix and it is wrong: the
+ * `tabs.onUpdated` listener also fires for the page you are already on (a late
+ * title, a same-page nav), which would wipe the confirmation a half-second
+ * after the capture that earned it. So the card is tied to a URL and clears
+ * only when the URL actually changes.
+ */
+let resultForUrl = null;
+
+function clearResult() {
+  resultForUrl = null;
+  els.result.className = "result";
+  els.result.innerHTML = "";
+}
+
 async function refreshTab() {
   const tab = await activeTab();
   if (!tab) return;
+  if (resultForUrl && tab.url !== resultForUrl) clearResult();
   els.tabTitle.textContent = tab.title || "(untitled)";
   els.tabUrl.textContent = tab.url || "";
   const ok = capturable(tab.url);

@@ -297,12 +297,10 @@ function Body({ dense = false }: { dense?: boolean }) {
       <section>
         <SectionLabel>What this is</SectionLabel>
         <Prose>
-          A job pipeline that lives in <Strong>this browser</Strong>. You capture
-          postings from wherever you find them; it scores each one against tracks
-          you define, deduplicates the same job arriving from three sites, and
-          gives you a board with four columns so you decide once instead of
-          re-reading. There is no account, no server and no database — which is
-          also why there is nothing to cancel.
+          A job pipeline that lives in <Strong>this browser</Strong>. Capture
+          postings from anywhere; it scores each against tracks you define,
+          collapses duplicates, and boards them so you decide once. No account,
+          no server — which is also why there is nothing to cancel.
         </Prose>
       </section>
 
@@ -311,25 +309,23 @@ function Body({ dense = false }: { dense?: boolean }) {
         <div className="space-y-2.5">
           <Step n={1} title="You define what you are looking for">
             A <Strong>track</Strong> is one thing you would take: “contract dev
-            work”, “senior PM at a product company”, “night shifts within an
-            hour of home”. You write the description in your own words and list
-            the keywords that actually appear in those postings. Up to five, and
-            they are yours — this app ships no opinion about what job you want.
+            work”, “night shifts within an hour of home”. Your words, your
+            keywords, up to five. This app ships no opinion about what job you
+            want.
           </Step>
           <Step n={2} title="Jobs come in by capture, not by crawl">
             The extension, the bookmarklet or the add form. Every route is a
             deliberate click on a page you are already reading.
           </Step>
           <Step n={3} title="Each job is scored per track, and shows its working">
-            One number per track, plus the exact list of signals that produced
-            it. The headline fit is the best of them — a posting that is a 90 for
-            contract work really is a 20 for a salaried role, and averaging those
-            would hide the only interesting thing in the room.
+            One number per track, with the signals behind it. A posting that is a
+            90 for contract work is a 20 for a salaried role — averaging those
+            hides the only interesting thing in the room.
           </Step>
           <Step n={4} title="You triage on the board">
-            Triage → Promoted → Applied, with Ignored out of the way. Nothing
-            moves on its own: the software has no way to know you sent something,
-            so it never claims you did.
+            Triage → Promoted → Applied, Ignored out of the way. Nothing moves on
+            its own: it cannot know you sent something, so it never claims you
+            did.
           </Step>
         </div>
       </section>
@@ -342,19 +338,16 @@ function Body({ dense = false }: { dense?: boolean }) {
               It cannot scrape job boards. That is physics, not a paywall.
             </div>
             <div className="mt-1 text-[14px] leading-relaxed text-muted-foreground">
-              A page running in your browser is not allowed to fetch another
-              site’s HTML — the browser blocks it cross-origin — and the boards
-              block datacenter IPs, so the usual workaround (a proxy server)
-              would need a server we deliberately do not have. Any free tool that
-              claims otherwise is either running that server for you, or reading
-              a feed that has already been shut off. Capture is how jobs get in
-              here, and it is honest about being manual.
+              A page in your browser cannot fetch another site’s HTML — blocked
+              cross-origin — and the boards block datacenter IPs. The workaround
+              is a server we deliberately do not have. Any free tool claiming
+              otherwise is running that server, or reading a feed already shut
+              off.
             </div>
           </div>
           <Prose>
-            It also does not write your applications, email anybody, remind you of
-            anything, or sync between your laptop and your phone. It has no
-            opinion about your CV. It is triage.
+            It also does not write applications, email anyone, remind you, or sync
+            between devices. It is triage.
           </Prose>
         </div>
       </section>
@@ -362,12 +355,11 @@ function Body({ dense = false }: { dense?: boolean }) {
       <section>
         <SectionLabel>Where your data goes</SectionLabel>
         <Prose>
-          Nowhere. Everything is in this browser’s local storage, and there is no
-          server to upload it to — you can watch the network tab stay empty. Two
-          consequences worth stating: <Strong>clearing your browser data deletes
-          your pipeline</Strong> (an export is the backup), and if you set an
-          Anthropic key it is stored here too, sent only to Anthropic, and
-          stripped out of every export.
+          Nowhere. It is in this browser’s local storage and there is no server to
+          send it to — watch the network tab stay empty. So:{" "}
+          <Strong>clearing your browser data deletes your pipeline</Strong>, and
+          an export is the backup. An Anthropic key is stored here too, sent only
+          to Anthropic, and stripped from every export.
         </Prose>
       </section>
 
@@ -380,9 +372,8 @@ function Body({ dense = false }: { dense?: boolean }) {
               <ColorBadge tone="green">free</ColorBadge>
             </div>
             <Prose>
-              Capture, dedupe, the board, and rule-based scoring: your keywords,
-              matched literally, with every signal named. Instant, offline, and
-              you can read exactly why a number came out the way it did.
+              Capture, dedupe, the board, and rule-based scoring: your keywords
+              matched literally, every signal named. Instant, offline, legible.
             </Prose>
           </PanelCard>
           <PanelCard>
@@ -392,10 +383,10 @@ function Body({ dense = false }: { dense?: boolean }) {
             </div>
             <Prose>
               Claude reads the posting against the <Strong>prose</Strong> you
-              wrote and writes its own reasoning per track — it understands “a
-              seat close to engineering” when the posting never says those words.
-              Under $0.01 a job, billed to you by Anthropic, key never leaves this
-              browser. Nothing is billed by us; there is no subscription here.
+              wrote and reasons per track — it understands “a seat close to
+              engineering” when the posting never says it. Under $0.01 a job,
+              billed by Anthropic. Your key never leaves this browser, and we
+              bill nothing.
             </Prose>
           </PanelCard>
           <PanelCard>
@@ -404,12 +395,11 @@ function Body({ dense = false }: { dense?: boolean }) {
               <ColorBadge tone="blue">server</ColorBadge>
             </div>
             <Prose>
-              A real backend does what a browser cannot: scheduled scrapers on a
-              cron, a shared database across your devices, drafted applications,
-              and the <Strong>Sources</Strong>, <Strong>Intelligence</Strong> and{" "}
-              <Strong>Stats</Strong> tabs. Those tabs are missing here rather than
-              faked — there is no scraper to report on and no outcome history to
-              chart.
+              A server does what a browser cannot: scheduled ingestion, a shared
+              database across devices, drafted applications, and the{" "}
+              <Strong>Sources</Strong>, <Strong>Intelligence</Strong> and{" "}
+              <Strong>Stats</Strong> tabs. Those are missing here rather than
+              faked — nothing to report on, no outcome history to chart.
             </Prose>
           </PanelCard>
         </div>

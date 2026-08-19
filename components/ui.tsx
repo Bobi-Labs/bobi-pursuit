@@ -436,18 +436,47 @@ export function HintCard({
  *
  * Wraps to a column on narrow screens, where the arrows turn to point down.
  */
-export function Steps({ steps }: { steps: readonly string[] }) {
+/**
+ * Box outline per path. Blue is the default; a second path on the same screen
+ * takes purple so the two are told apart at a glance rather than by reading
+ * their labels.
+ *
+ * The default used to be `border-border`, the same grey as every other panel on
+ * the page, which made a sequence look like more furniture. Colour is doing real
+ * work here: it is the only thing marking these boxes as a path.
+ */
+const STEP_TONE = {
+  blue: "border-sky-400/50 bg-sky-500/[0.06]",
+  purple: "border-violet-400/50 bg-violet-500/[0.06]",
+} as const;
+
+export function Steps({
+  steps,
+  tone = "blue",
+}: {
+  steps: readonly string[];
+  tone?: keyof typeof STEP_TONE;
+}) {
   return (
-    <ol className="flex flex-col gap-1.5 sm:flex-row sm:items-stretch sm:gap-0">
+    <ol className="flex flex-col gap-1 sm:flex-row sm:items-stretch sm:gap-0">
       {steps.map((step, i) => (
-        <li key={step} className="flex items-center gap-1.5 sm:flex-1">
-          <div className="flex min-h-[46px] w-full items-center justify-center rounded-[10px] border border-border bg-card px-2.5 py-2 text-center text-[13px] font-semibold leading-snug text-foreground">
+        <li key={step} className="flex items-center gap-1 sm:flex-1">
+          <div
+            className={cx(
+              "flex min-h-[46px] w-full items-center justify-center rounded-[10px] border px-2.5 py-2 text-center text-[13px] font-semibold leading-snug text-foreground",
+              STEP_TONE[tone],
+            )}
+          >
             {step}
           </div>
           {i < steps.length - 1 ? (
+            // Green, heavier, and larger than the label it sits between.
+            // At 13px in muted grey this read as an em dash at a glance — the
+            // arrow is the only thing saying these boxes are ordered, so it has
+            // to survive being glanced at rather than read.
             <span
               aria-hidden
-              className="shrink-0 px-1 text-[13px] font-bold text-muted-foreground"
+              className="shrink-0 px-0.5 text-[18px] font-black leading-none text-emerald-400 sm:px-1"
             >
               <span className="sm:hidden">↓</span>
               <span className="hidden sm:inline">→</span>

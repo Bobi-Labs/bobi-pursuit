@@ -501,13 +501,18 @@ function StepKey({
           terms and the honest limitation of each are all still here — they are
           behind the disclosures, which is where detail belongs on a screen
           someone is trying to get through. */}
-      <div className="space-y-3">
+      {/* The two methods were reading as one scrunched block. They are separate
+          choices, so they get real space between them and their own colour —
+          blue for the default path, purple for the key path, matching the badge
+          each already carries. */}
+      <div className="space-y-5">
         <div>
           <div className="mb-1.5 flex items-center gap-1.5">
             <span className="text-[14px] font-bold">Method 1</span>
-            <ColorBadge tone="green">default</ColorBadge>
+            <ColorBadge tone="blue">default</ColorBadge>
           </div>
           <Steps
+            tone="blue"
             steps={[
               "Open Pursuit",
               "Run the plugin",
@@ -526,12 +531,13 @@ function StepKey({
           </div>
         </div>
 
-        <div>
+        <div className="border-t border-border pt-5">
           <div className="mb-1.5 flex items-center gap-1.5">
             <span className="text-[14px] font-bold">Method 2</span>
             <ColorBadge tone="purple">better</ColorBadge>
           </div>
           <Steps
+            tone="purple"
             steps={[
               "Add a Claude key",
               "Run the plugin",

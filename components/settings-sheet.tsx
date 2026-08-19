@@ -88,9 +88,20 @@ export function SettingsSheet({
    * `handleWipe` in `pipeline-app.tsx`.
    */
   onWipe,
+  focusKey = false,
 }: {
   onClose: () => void;
   onWipe: () => void;
+  /**
+   * Opened from "Add a Claude key" rather than from the Settings button, so
+   * land on the key field instead of at the top of a long sheet.
+   *
+   * Scrolls and focuses rather than only focusing: this input lives far down
+   * past the tracks, and a focused control the reader cannot see is a worse
+   * outcome than no focus at all — the page looks unchanged and the next
+   * keystroke goes somewhere invisible.
+   */
+  focusKey?: boolean;
 }) {
   const doc = usePipeline();
   const settings = doc.settings;
@@ -134,6 +145,19 @@ export function SettingsSheet({
 
   const keyRef = useRef<HTMLInputElement>(null);
   const keySet = settings.anthropicApiKey.trim() !== "";
+
+  // Deliberately not a layout effect: the sheet animates in, and scrolling
+  // before it has a height lands at the top of a box that is still growing.
+  useEffect(() => {
+    if (!focusKey) return;
+    const t = window.setTimeout(() => {
+      const el = keyRef.current;
+      if (!el) return;
+      el.scrollIntoView({ block: "center" });
+      el.focus();
+    }, 120);
+    return () => window.clearTimeout(t);
+  }, [focusKey]);
   const llmScored = useMemo(
     () => doc.jobs.filter((job) => isLlmScore(job.score)).length,
     [doc.jobs],

@@ -281,6 +281,9 @@ export default function PipelineApp({
   const [addOpen, setAddOpen] = useState(false);
   const [prefill, setPrefill] = useState<CaptureParams | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  /* Whether Settings was opened to add a key, rather than to browse settings.
+     Reset on close so the next ordinary visit starts at the top. */
+  const [settingsFocusKey, setSettingsFocusKey] = useState(false);
   const [howOpen, setHowOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [tourOpen, setTourOpen] = useSessionState("tourOpen");
@@ -645,6 +648,10 @@ export default function PipelineApp({
               job={selected}
               profiles={profiles}
               onGoPipeline={() => goTab("pipeline")}
+              onAddKey={() => {
+                setSettingsFocusKey(true);
+                setSettingsOpen(true);
+              }}
               onStatus={(next) =>
                 selected && store.setPipelineStatus(selected.id, next)
               }
@@ -708,8 +715,12 @@ export default function PipelineApp({
 
       {settingsOpen ? (
         <SettingsSheet
-          onClose={() => setSettingsOpen(false)}
+          onClose={() => {
+            setSettingsOpen(false);
+            setSettingsFocusKey(false);
+          }}
           onWipe={handleWipe}
+          focusKey={settingsFocusKey}
         />
       ) : null}
       {howOpen ? <HowItWorksSheet onClose={() => setHowOpen(false)} /> : null}

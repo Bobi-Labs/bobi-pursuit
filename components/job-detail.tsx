@@ -85,6 +85,7 @@ export function JobStudioPanel({
   scoring = false,
   scoreError = null,
   onScoreWithClaude,
+  onAddKey,
 }: {
   job: Job | null;
   profiles: Profile[];
@@ -92,8 +93,10 @@ export function JobStudioPanel({
   onNotes: (notes: string) => void;
   onDelete: () => void;
   onGoPipeline: () => void;
-  /** True only when an API key is set — the button does not exist otherwise. */
+  /** True only when an API key is set. Without one, the card offers to add one. */
   canScoreWithClaude?: boolean;
+  /** Opens Settings with the key field focused. See `onAddKey` in pipeline-app. */
+  onAddKey?: () => void;
   scoring?: boolean;
   /** A failed call, already phrased for a human. Rendered, never swallowed. */
   scoreError?: string | null;
@@ -314,9 +317,15 @@ export function JobStudioPanel({
             ))}
           </div>
 
-          {/* The upgrade, offered per job. Only when a key is set; re-scoring
-              something Claude already read is allowed but labelled as a re-run,
-              because it costs again. */}
+          {/* The upgrade, offered per job.
+              This used to render *only* when a key was set, which meant the
+              upgrade was advertised exclusively to people who had already taken
+              it. Anyone who skipped the key during onboarding got a sentence
+              elsewhere telling them to go and find Settings, and no way to act
+              on it from the screen where the difference is actually visible.
+              Both states are offered now: score it, or get the thing that scores
+              it. Re-scoring something Claude already read is allowed but
+              labelled as a re-run, because it costs again. */}
           {canScoreWithClaude ? (
             <div className="mt-3 border-t border-border pt-3">
               <Button
@@ -338,6 +347,22 @@ export function JobStudioPanel({
                   : byClaude
                     ? "Costs another call on your key."
                     : "Reads the posting against your track descriptions. ~$0.004 on your key."}
+              </div>
+            </div>
+          ) : onAddKey ? (
+            <div className="mt-3 border-t border-border pt-3">
+              <Button
+                size="md"
+                className="w-full"
+                variant="default"
+                onClick={onAddKey}
+              >
+                ✨ Add a Claude key
+              </Button>
+              <div className="mt-1.5 text-center text-[14px] leading-snug text-text-muted">
+                Optional. Claude reads the posting against your own description
+                instead of matching keywords. Under $0.01 a job, billed by
+                Anthropic.
               </div>
             </div>
           ) : null}
@@ -495,7 +520,7 @@ function StudioScoring({
         A track counts as a match at {PROFILE_MATCH_THRESHOLD}.{" "}
         {byClaude
           ? "Claude read the posting against each track's description and wrote the lines above."
-          : "These are rule-based: your keywords, matched literally, with every signal that moved the number named. Add an Anthropic key in Settings and Claude reads the posting against your description instead."}
+          : "These are rule-based: your keywords, matched literally, with every signal that moved the number named."}
       </div>
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">

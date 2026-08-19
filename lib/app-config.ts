@@ -33,3 +33,33 @@ export const FEEDBACK_URL: string | null =
 
 /** Public source. The extension lives under `extension/` in the same repo. */
 export const REPO_URL = "https://github.com/Bobi-Labs/bobi-pursuit";
+
+/* ── Where to install the capture extension ────────────────────────────────
+ *
+ * Both listings went public 2026-08-14. Before that the app told people to
+ * download the `extension/` folder and side-load it through
+ * `chrome://extensions` → Developer mode → Load unpacked, which was correct
+ * while the extensions were unlisted and became actively wrong the moment they
+ * were not: it walked a first-time user through a developer flow to reach
+ * something that is now one click.
+ *
+ * The Chrome URL is the **id-only** form on purpose. The listing's canonical
+ * address is `/detail/bobi-pursuit-—-capture/<id>`, whose slug carries a
+ * literal em-dash; that has to be percent-encoded as %E2%80%94 to survive every
+ * context it gets pasted into. `/detail/<id>` redirects to the canonical form
+ * and is pure ASCII, so it is the one that cannot be mangled.
+ *
+ * Verified live rather than assumed, and the check needed care: the Chrome Web
+ * Store answers **200 for a nonexistent id**, serving a shell that 404s on the
+ * client, so the status code proves nothing. The discriminating probe is the
+ * server-rendered og:title — the real id returns "Bobi-Pursuit — Capture", a
+ * bogus one returns the generic "Chrome Web Store".
+ */
+
+/** Chrome Web Store listing. Id-only form; the store canonicalises it. */
+export const CHROME_EXTENSION_URL =
+  "https://chromewebstore.google.com/detail/imeiijihiifnfdancfojmelbnfpmfllb";
+
+/** Firefox Add-ons listing. */
+export const FIREFOX_EXTENSION_URL =
+  "https://addons.mozilla.org/en-US/firefox/addon/bobi-pursuit-capture/";

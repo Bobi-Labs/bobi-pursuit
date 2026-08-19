@@ -656,10 +656,13 @@ export function SettingsSheet({
             <Button
               size="md"
               onClick={() => {
-                store.loadSample();
+                const imported = store.loadSample();
                 setNotice({
-                  tone: "green",
-                  text: "Sample pipeline loaded — ten illustrative jobs, scored against your tracks.",
+                  tone: imported > 0 ? "green" : "amber",
+                  text:
+                    imported > 0
+                      ? `Sample pipeline loaded — ${imported} illustrative job${imported === 1 ? "" : "s"}, scored against your tracks.`
+                      : "Nothing new — the sample pipeline is already on your board.",
                 });
               }}
             >

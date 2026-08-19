@@ -555,7 +555,12 @@ export default function PipelineApp({
             </div>
           </div>
           <div className="relative flex flex-wrap items-center gap-1.5">
-            <Button size="md" variant="primary" onClick={() => setAddOpen(true)}>
+            <Button
+              size="md"
+              variant="primary"
+              data-tour="capture"
+              onClick={() => setAddOpen(true)}
+            >
               + Capture a job
             </Button>
             <Button size="md" onClick={() => setHowOpen(true)}>

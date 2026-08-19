@@ -49,29 +49,42 @@ That writes `extension/dist/bobi-pursuit-capture-chrome-<v>.zip` and
 
 ---
 
-## Chrome Web Store — permission justifications
+## Chrome Web Store — Privacy practices tab
 
-Chrome requires a justification per permission. These are the answers.
+Chrome blocks publishing until EVERY row below is filled in. It asks for a
+justification per permission, including ones you might not think of as
+permissions, and it will not tell you which are missing until you hit publish.
 
-| Permission | Justification to paste |
-|---|---|
-| `scripting` | Reads the job posting (title, description, budget) from the page the user is actively viewing, only when the user clicks capture. No script is injected at any other time. |
-| `tabs` | Opens the user's own Bobi-Pursuit board in a tab to complete the capture, and detects the URL of the page being captured. |
-| `storage` | Stores the user's settings only: which board to capture into. No user content is stored. |
-| `sidePanel` | Displays the capture panel UI. |
-| `<all_urls>` host permission | Job postings appear on a large and unpredictable set of sites, which cannot be enumerated in advance. The permission grants the ability to read a page the user explicitly captures from; it is exercised only on an explicit click, never in the background. |
-| `cookies` *(optional)* | Optional and never requested by default. Requested only if the user enables self-hosted mode, where it reads a single session cookie on the user's own deployment to detect whether they are signed in. Not used with the free hosted app. |
-
-**Single purpose statement:**
+**Single purpose** (required, its own field):
 
 > Capture a job posting from the page the user is viewing into their own
 > Bobi-Pursuit job pipeline.
 
-**Data usage disclosures:** answer *no* to every collection category. The
-extension transmits no data to the developer; captured content goes only to the
-user's own board.
+**Per-permission justifications:**
 
----
+| Permission | Justification to paste |
+|---|---|
+| `scripting` | Reads the job posting (title, description, budget) from the page the user is actively viewing, only at the moment they click capture. No script is injected at any other time. |
+| `tabs` | Opens the user own Bobi-Pursuit board in a tab to complete the capture, and reads the URL of the page being captured so the saved job links back to its source. |
+| `storage` | Stores the user settings only: which board to capture into and which mode to use. No captured content and no personal data is stored by the extension. |
+| `sidePanel` | Displays the capture panel UI, which is the extension entire interface. |
+| `cookies` | **Optional permission, never requested by default.** Requested only if the user switches on self-hosted mode, where it reads a single session cookie on the user own deployment to detect whether they are signed in. It is not used with the hosted app, and declining it degrades to "not signed in" rather than breaking capture. |
+| `<all_urls>` host permission | Job postings appear on a large and unpredictable set of sites which cannot be enumerated in advance. This grants the ability to read a page the user explicitly captures from; it is exercised only on an explicit click and never in the background. |
+
+**Remote code** (required, and the answer is no):
+
+> No, I am not using remote code.
+
+Every line the extension runs is in the package. It loads no external script,
+uses no CDN, evaluates no fetched string, and has no hosted config. Nothing here
+is minified, bundled or generated either, so what is reviewed is what runs.
+
+**Data usage** (required, plus a certification checkbox):
+
+Answer **no to every collection category**. The extension transmits nothing to
+the developer. A capture is handed to the user own board via a URL, and on the
+free tier that board stores everything in the user own browser. Then tick the
+certification that the disclosures are complete and accurate.
 
 ## Firefox AMO notes
 
@@ -96,10 +109,25 @@ user's own board.
 
 ---
 
-## Screenshots
+## Images
 
-`node scripts/capture-store-shots.mjs` writes 1280×800 PNGs to
-`extension/dist/screenshots/`, which is the size both stores accept.
+`node scripts/capture-store-shots.mjs` writes a set per store, because the two
+demand different sizes and neither is flexible:
+
+| | Size | Path |
+|---|---|---|
+| Chrome screenshots | **1280x800 exactly** (or 640x400) | `extension/dist/screenshots/chrome/` |
+| AMO screenshots | up to 2400x1800; shot at 2400x1500 | `extension/dist/screenshots/amo/` |
+| Store icon (both) | 128x128 | `extension/icons/icon128.png` |
+| Chrome small promo tile | 440x280 | `extension/dist/promo/` |
+| Chrome marquee promo tile | 1400x560 | `extension/dist/promo/` |
+
+Promo tiles are optional and come from `node scripts/capture-promo-tiles.mjs`.
+They are composed rather than captured: a screenshot shrunk to 440x280 is
+unreadable, and that tile sits beside search results.
+
+All images must be 24-bit PNG with no alpha. Puppeteer emits colour type 2, so
+this is already satisfied; worth re-checking if the capture ever changes.
 
 ## Before you submit
 

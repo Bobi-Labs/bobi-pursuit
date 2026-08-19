@@ -17,13 +17,26 @@
  *    navigates there before you read the card. The effect that consumes this
  *    lives in `pipeline-app.tsx`, because that file owns the tab-to-URL table
  *    and there should be exactly one of those.
- *  - **The card sits in a bottom corner**, never dead centre. The app's content
- *    is top-anchored (banner, tabs, then the panel), so a bottom corner is the
- *    position that covers least of what the stop just promised to show you, and
- *    `TourStop.place` picks the corner away from whatever the stop points at.
+ *  - **Each stop points at a real element** (`TourStop.anchor`), which is cut
+ *    out of the scrim and ringed.
  *
- * The backdrop is dimmed only lightly for the same reason. A 70% scrim was fine
- * when there was nothing behind the card worth looking at; now there is.
+ * That second point replaced a `place` field that chose a bottom corner per
+ * stop, and the replacement is worth explaining because the corner version
+ * looked reasonable and did not work. Navigating to the right tab and then
+ * *describing* the subject in prose is still a slideshow: two stops ended up
+ * saying the thing was "behind this card", one stop's comment justified its
+ * corner on the theory that "the empty corner drags the eye up to it", and the
+ * operator's note after using it was that it was not clear the card was talking
+ * about the page he was on. It was not, because nothing on screen said so.
+ *
+ * Pointing at the element let the copy shrink from **279 words to 86** across
+ * the five stops, which is the real win: a card that no longer has to explain
+ * where a thing is can spend its words on what the thing is for. The card's own
+ * position is now derived from the anchor — it takes whichever half of the
+ * screen the anchor is not in — instead of being hardcoded per stop against a
+ * layout that has since changed twice.
+ *
+ * An anchor that cannot be found degrades to a flat dim rather than throwing.
  *
  * Every sentence in `TOUR_STOPS` is true of the free tier as shipped. This tier
  * captures by hand — one deliberate click, via the extension, the bookmarklet or
@@ -62,7 +75,13 @@
  * sees first.
  */
 
-import { useCallback, useEffect, useRef, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 // Type-only, and it has to stay that way: `pipeline-app` imports this module for
 // real, so a value import here would close the cycle at runtime.
@@ -135,11 +154,22 @@ export interface TourStop {
   /** The tab this stop is about. The shell navigates here before you read it. */
   tab: TabKey;
   /**
-   * Which bottom corner the card takes. Both are bottom corners because the
-   * content this tour exists to point at starts at the top of the page; left vs
-   * right is only ever "the corner furthest from what this stop is describing".
+   * What this stop points at, as a `data-tour` value on a real element.
+   *
+   * This is the field that turned the tour from a slideshow into a tour. Before
+   * it, the card navigated to the right tab and then described its subject in
+   * prose — two stops literally said the thing was "behind this card", which is
+   * copy compensating for a missing pointer, and the operator's note was that it
+   * was not clear the card was even talking about the page he was on. Now the
+   * element is cut out of the scrim and ringed, so the card can stop describing
+   * location and just say what the thing is for.
+   *
+   * A miss is survivable on purpose: if the element is absent (a tab that
+   * renders nothing on an empty board, a viewport that hides it), the scrim
+   * falls back to a flat dim and the card still reads. A tour that throws
+   * because a selector moved is worse than one that points vaguely.
    */
-  place: "left" | "right";
+  anchor?: string;
   title: string;
   body: ReactNode;
 }
@@ -159,18 +189,12 @@ export const TOUR_STOPS: readonly TourStop[] = [
     key: "capture",
     label: "Getting jobs in",
     tab: "overview",
-    // Left, alone among the five: this is the one stop whose subject is fixed in
-    // the top-right of the screen, and the empty corner drags the eye up to it.
-    place: "left",
+    anchor: "capture",
     title: "Nothing arrives on its own",
     body: (
       <>
-        There are no scrapers here and nothing runs while this tab is closed, so
-        the board stays empty until you put something on it.{" "}
-        <Strong>+ Capture a job</Strong> sits in the header on every tab. The
-        browser extension and the bookmarklet do the same job in one click from a
-        posting you already have open, and the same URL captured twice stays one
-        card.
+        No crawling, ever. The board stays empty until you put something on it —
+        this button, the extension, or a bookmarklet.
       </>
     ),
   },
@@ -178,31 +202,20 @@ export const TOUR_STOPS: readonly TourStop[] = [
     key: "overview",
     label: "Overview",
     tab: "overview",
-    place: "right",
-    title: "Overview: what needs attention",
-    body: (
-      <>
-        Behind this card: four counts, the strongest jobs still waiting on a
-        decision, and how your captures spread across your tracks. Every number
-        here is a button that drops you into the matching slice of the board.
-        Open this tab first when you come back to a pile you have not looked at
-        in a week.
-      </>
-    ),
+    anchor: "overview-counts",
+    title: "Start here when you come back",
+    body: <>Four counts. Each one is a button into that slice of the board.</>,
   },
   {
     key: "pipeline",
     label: "Pipeline",
     tab: "pipeline",
-    place: "right",
-    title: "Pipeline: decide once, not four times",
+    anchor: "tab-pipeline",
+    title: "Decide once, not four times",
     body: (
       <>
-        This is the board. <Strong>Triage</Strong> is everything captured and
-        undecided: promote what is worth an afternoon, skip the rest, and do it
-        fast. <Strong>Applied</Strong> is a step only you can take, because
-        nothing here can send anything for you. Skipped jobs go to Ignored, kept
-        and restorable rather than deleted.
+        Promote what is worth an afternoon, skip the rest. Skipped goes to
+        Ignored — kept, not deleted.
       </>
     ),
   },
@@ -210,15 +223,12 @@ export const TOUR_STOPS: readonly TourStop[] = [
     key: "studio",
     label: "Job Studio",
     tab: "studio",
-    place: "right",
-    title: "Job Studio: one job, and all the working",
+    anchor: "tab-studio",
+    title: "One job, and all the working",
     body: (
       <>
-        Open any card and it lands here: the posting, one score per track instead
-        of a single averaged verdict, the signals behind each number, and your
-        notes. Add an Anthropic key in <Strong>Settings</Strong> and you can ask
-        Claude to read a posting properly. That re-reads what you captured; it
-        never goes and fetches one.
+        One score per track instead of one averaged verdict, plus the signals
+        behind each number.
       </>
     ),
   },
@@ -226,25 +236,117 @@ export const TOUR_STOPS: readonly TourStop[] = [
     key: "howitworks",
     label: "How it works",
     tab: "howitworks",
-    place: "right",
-    title: "How it works: the long version",
+    anchor: "tab-howitworks",
+    title: "The manual, and one warning",
     body: (
       <>
-        The tab behind this card is the manual: every capture route including the
-        bookmarklet to copy, what scoring does with and without a key, and where
-        your data lives. That last part is worth knowing now. All of it stays in
-        this browser, so <Strong>Export</Strong> in Settings is the only backup
-        you have, and clearing your browser data clears the pipeline.
+        Every capture route lives here. Your data never leaves this browser, so{" "}
+        <Strong>Export</Strong> in Settings is your only backup.
       </>
     ),
   },
 ];
 
-/** Bottom corner on a real screen; a bottom sheet on a phone, where there is no corner to take. */
-const PLACE: Record<TourStop["place"], string> = {
-  left: "sm:justify-start",
-  right: "sm:justify-end",
-};
+/** A measured anchor: where the thing this stop points at actually is. */
+interface AnchorBox {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+}
+
+/** Breathing room around the cut-out, so the ring never crowds the element. */
+const HALO = 6;
+
+/**
+ * Measure the element a stop points at, and keep measuring it.
+ *
+ * Deliberately an effect rather than a ref callback: the tour navigates to a
+ * tab and the element it wants may not exist in the same frame the stop
+ * changes. A single measurement on mount would race that and miss, which reads
+ * as the spotlight landing on nothing.
+ *
+ * Returns null when there is no anchor or the element is not on screen, and the
+ * caller is expected to treat that as "dim everything flatly" rather than as an
+ * error. See the note on `TourStop.anchor`.
+ */
+function useAnchorBox(anchor: string | undefined, open: boolean): AnchorBox | null {
+  const [box, setBox] = useState<AnchorBox | null>(null);
+
+  useEffect(() => {
+    if (!open || !anchor) {
+      setBox(null);
+      return;
+    }
+
+    const measure = () => {
+      const el = document.querySelector(`[data-tour="${anchor}"]`);
+      if (!el) {
+        // The tab this stop navigated to may still be mounting.
+        setBox(null);
+        return;
+      }
+      const r = el.getBoundingClientRect();
+      // Present but not laid out yet; treat as not ready rather than as a box.
+      if (r.width === 0 && r.height === 0) return;
+      setBox((prev) =>
+        prev &&
+        prev.top === r.top &&
+        prev.left === r.left &&
+        prev.width === r.width &&
+        prev.height === r.height
+          ? prev
+          : { top: r.top, left: r.left, width: r.width, height: r.height }
+      );
+    };
+
+    /* Re-measured on events, not on a clock, and both of the obvious clock
+     * versions were written and thrown away first:
+     *
+     *  - Measuring **once** drew the ring 10px off the capture button. This
+     *    component sets `overflow: hidden` on the body, that removes the
+     *    scrollbar, and everything right-aligned in the header slides sideways
+     *    *after* the single measurement lands. Close enough to look like a
+     *    rounding artefact; not close enough to be pointing at anything.
+     *  - Measuring **every frame** fixed it and could not be proven. Neither
+     *    `requestAnimationFrame` nor `setInterval` fires dependably in a tab
+     *    that is not compositing, so in a headless or backgrounded browser the
+     *    tracking silently does nothing and the test reports the same stale
+     *    numbers whatever the code says. A mechanism whose test passes and
+     *    fails identically is not a tested mechanism.
+     *
+     * Observers fire on layout, not on a clock, so they work in a hidden tab
+     * and are verifiable. `documentElement` is the one that matters: losing the
+     * scrollbar changes its content width, which is precisely the 10px event. */
+    measure();
+
+    const ro = new ResizeObserver(measure);
+    ro.observe(document.documentElement);
+    const anchorEl = document.querySelector(`[data-tour="${anchor}"]`);
+    if (anchorEl) ro.observe(anchorEl);
+
+    // The anchor for a stop that just navigated may not be in the DOM yet, and
+    // a panel mounting under it moves everything below. Cheap because `measure`
+    // bails on an unchanged box without re-rendering.
+    const mo = new MutationObserver(measure);
+    mo.observe(document.body, { childList: true, subtree: true });
+
+    window.addEventListener("resize", measure);
+
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [anchor, open]);
+
+  return box;
+}
+
+/** Half the viewport height, guarded for the build-time render in Node. */
+function viewportMidpoint(): number {
+  return typeof window === "undefined" ? 0 : window.innerHeight / 2;
+}
 
 /* ───────────────────────────────── Surface ────────────────────────────── */
 
@@ -302,15 +404,41 @@ export function Tour({
     if (open) panelRef.current?.focus();
   }, [open]);
 
+  /* Measured here, and the position of these two lines is the fix rather than a
+   * style preference.
+   *
+   * Hook effects run in call order. When `useAnchorBox` was called at the top of
+   * this component its effect ran *before* the scroll-lock effect below, so the
+   * very first measurement always read the layout as it was **with** a
+   * scrollbar — and the lock then removed the scrollbar and slid everything
+   * right-aligned sideways by its width. The ring drew ~10px off its button,
+   * every single time, deterministically.
+   *
+   * Measuring after the lock is declared means the first measurement is already
+   * the locked layout. The observers inside the hook stay as the safety net for
+   * everything else that moves (panels mounting, the window resizing), but
+   * correctness no longer depends on one of them firing.
+   */
+  // Measured every stop. Null is a normal outcome, not a failure — see the hook.
+  const box = useAnchorBox(stop.anchor, open);
+
+  /* Which half of the screen the card takes.
+   *
+   * Driven by the anchor rather than hardcoded per stop, because the old
+   * hardcoded corners were chosen against a layout that has since changed twice.
+   * The rule is only "get out of the way of the thing being pointed at": if the
+   * anchor sits in the top half, the card goes to the bottom, and vice versa.
+   * With no anchor it falls back to the bottom, which is where it always was. */
+  const cardAtBottom =
+    box == null ? true : box.top + box.height / 2 < viewportMidpoint();
+
   if (!open) return null;
 
   return (
     <div
       className={cx(
-        // `items-end` on every breakpoint: the card belongs at the bottom of the
-        // screen because everything it describes begins at the top of it.
-        "fixed inset-0 z-50 flex items-end justify-center p-4 sm:p-6",
-        PLACE[stop.place],
+        "fixed inset-0 z-50 flex justify-center p-4 sm:p-6",
+        cardAtBottom ? "items-end" : "items-start",
       )}
       role="dialog"
       aria-modal="true"
@@ -324,8 +452,37 @@ export function Tour({
         type="button"
         aria-label="Close the tour"
         onClick={dismiss}
-        className="absolute inset-0 h-full w-full cursor-default bg-black/35"
+        className={cx(
+          "absolute inset-0 h-full w-full cursor-default",
+          // With an anchor the dimming is done by the cut-out below, so this
+          // stays transparent and only carries the click-away behaviour. Two
+          // stacked scrims would double-darken the one element we are trying to
+          // make the brightest thing on screen.
+          box ? "bg-transparent" : "bg-black/35",
+        )}
       />
+
+      {/* ── the spotlight ──
+          One element does both jobs: an enormous spread box-shadow dims the
+          entire page *except* this rectangle, and the border rings what is left.
+          That is why there is no second scrim and no four-rectangle mask.
+
+          `pointer-events-none` matters: the cut-out sits above the backdrop
+          button, and without it the highlighted element would be the one place
+          on screen where clicking away silently did nothing. */}
+      {box ? (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute rounded-[10px] border-2 border-primary transition-all duration-200"
+          style={{
+            top: box.top - HALO,
+            left: box.left - HALO,
+            width: box.width + HALO * 2,
+            height: box.height + HALO * 2,
+            boxShadow: "0 0 0 9999px rgba(0,0,0,0.55)",
+          }}
+        />
+      ) : null}
 
       <div
         ref={panelRef}

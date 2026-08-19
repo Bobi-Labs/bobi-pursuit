@@ -137,7 +137,12 @@ it reads the job description out of the page directly, using per-site selectors
 for the common boards, and falls back to your selection when a site is
 unfamiliar. It sends the same parameters to the same URL.
 
-Source and install instructions are in
+Install it from the store for your browser:
+
+- **Chrome, Edge, Brave, Arc** — <https://chromewebstore.google.com/detail/imeiijihiifnfdancfojmelbnfpmfllb>
+- **Firefox** — <https://addons.mozilla.org/en-US/firefox/addon/bobi-pursuit-capture/>
+
+Source is in
 [`extension/`](https://github.com/Bobi-Labs/bobi-pursuit/tree/main/extension).
 It is MIT too, it defaults to this free app with no account, and it reads a page
 only when you click. (Absolute URL on purpose: this README is the root README of

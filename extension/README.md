@@ -15,25 +15,36 @@ Upwork, Contra, Reddit, Indeed, Glassdoor and Wellfound, and falls back to the
 page's main content everywhere else. Tip: select the description text first
 for the cleanest capture.
 
-## Install (load unpacked)
+## Install
+
+Both listings are public. This is the way to install it:
+
+- **Chrome, Edge, Brave, Arc** — <https://chromewebstore.google.com/detail/imeiijihiifnfdancfojmelbnfpmfllb>
+- **Firefox** — <https://addons.mozilla.org/en-US/firefox/addon/bobi-pursuit-capture/>
+
+Then browse to a job and hit **⬆ Capture this job**.
+
+Firefox has no side-panel API, so the panel isn't docked there; the extension
+feature-detects it and capture behaves identically either way.
+
+## Running from source
+
+Only needed if you are changing the extension. Installing from the store is the
+normal path, and this section led the README until the listings went public on
+2026-08-14 — leaving it in front was walking every reader through a developer
+flow to reach something that is one click.
 
 **Chrome / Edge**
 
 1. `chrome://extensions` → enable **Developer mode**.
 2. **Load unpacked** → select this `extension/` folder.
-3. Click the toolbar icon → the capture panel docks open.
 
 **Firefox**
 
 1. `about:debugging` → **This Firefox** → **Load Temporary Add-on…**
 2. Pick `manifest.json` inside this `extension/` folder.
-3. Click the toolbar icon → the capture panel opens.
 
-Firefox has no side-panel API, so the panel isn't docked there; the extension
-feature-detects it and capture behaves identically either way. A temporary
-add-on is unloaded when Firefox restarts — reload it the same way.
-
-Then browse to a job and hit **⬆ Capture this job**.
+A temporary add-on is unloaded when Firefox restarts — reload it the same way.
 
 ## How it works
 

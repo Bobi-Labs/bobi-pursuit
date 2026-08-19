@@ -157,6 +157,15 @@ function zipDir(srcDir, outFile) {
   return "node";
 }
 
+/**
+ * Chrome rejects an upload whose manifest `description` exceeds 132 characters,
+ * and it rejects it at UPLOAD time with a message that names the number but not
+ * the file. Firefox has no such cap, so the two manifests can silently diverge
+ * into one that ships and one that does not. Checked here instead of discovered
+ * in the dashboard.
+ */
+const CHROME_DESC_MAX = 132;
+
 function build(target, manifestSource) {
   rmSync(STAGE, { recursive: true, force: true });
   mkdirSync(STAGE, { recursive: true });
@@ -170,6 +179,13 @@ function build(target, manifestSource) {
   // The manifest is the only per-target difference. Copy it in under the one
   // name both browsers look for.
   cpSync(resolve(HERE, manifestSource), resolve(STAGE, "manifest.json"));
+
+  const desc = JSON.parse(readFileSync(resolve(HERE, manifestSource), "utf8")).description;
+  if (target === "chrome" && desc.length > CHROME_DESC_MAX) {
+    throw new Error(
+      `manifest description is ${desc.length} chars; the Chrome Web Store rejects anything over ${CHROME_DESC_MAX}`,
+    );
+  }
 
   const out = resolve(DIST, `bobi-pursuit-capture-${target}-${version}.zip`);
   rmSync(out, { force: true });

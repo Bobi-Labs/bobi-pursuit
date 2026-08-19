@@ -1334,8 +1334,16 @@ export class PursuitStore {
    * Seed the demo pipeline. Merged, not installed: loading the sample can never
    * cost someone the jobs they already captured, and loading it twice is a no-op
    * because the sample urls dedupe against themselves.
+   *
+   * Returns the number actually imported, which is 0 on that second press.
+   * It used to return void, and every caller therefore assumed success —
+   * Settings showed "Sample pipeline loaded — ten illustrative jobs" over a
+   * board that had not changed. A no-op reported as success is worse than a
+   * failure, because the user believes the app and blames themselves. Callers
+   * that surface a result MUST branch on this number; `importJson` alongside
+   * already did, which is why the same press on the import path told the truth.
    */
-  loadSample = (): void => {
+  loadSample = (): number => {
     const ts = now();
     const settings = this.doc.settings;
     // The seed module ships jobs deliberately UNSCORED, so the demo always
@@ -1343,8 +1351,9 @@ export class PursuitStore {
     // when the fixtures were written. `makeJob` scores each one on the way in.
     const seeded = sampleJobs().map((job) => this.makeJob(job, ts, settings));
     const { jobs, imported } = mergeJobs(this.doc.jobs, seeded);
-    if (imported === 0) return;
+    if (imported === 0) return 0;
     this.commit((doc) => ({ ...doc, jobs }), ts);
+    return imported;
   };
 
   /**

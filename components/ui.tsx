@@ -606,6 +606,9 @@ export function FolderTabs<K extends string>({
           <button
             key={t.key}
             type="button"
+            // Stable hook for the first-run tour to point at. Generic on purpose:
+            // this component knows nothing about the tour beyond the attribute.
+            data-tour={`tab-${t.key}`}
             onClick={() => onChange(t.key)}
             aria-current={isActive ? "page" : undefined}
             className={cx(

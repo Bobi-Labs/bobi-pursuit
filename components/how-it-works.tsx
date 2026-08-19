@@ -35,18 +35,41 @@ import {
   Sheet,
   cx,
 } from "./ui";
+import {
+  CHROME_EXTENSION_URL,
+  FIREFOX_EXTENSION_URL,
+} from "@/lib/app-config";
 
 /**
- * Where the browser extension lives.
+ * Which browser is this, as far as the install buttons need to care.
  *
- * This used to deep-link into a private repository, which was wrong three ways
- * for a public build: the link 404s for every visitor, the URL carried an
- * internal name that must not appear on a public surface, and it advertised
- * the private tree's existence. Points at the product page instead, which is
- * public, already live, and stays correct wherever the extension ends up.
+ * Client-only and deliberately `null` on the first render: this app is a static
+ * export, so the component runs once in Node at build time where there is no
+ * user agent. Guessing a browser there would bake one into the HTML and hand
+ * every other browser a hydration mismatch. `null` renders both stores, which
+ * is also the honest answer for anything that is neither.
+ *
+ * Sniffing at all is a deliberate exception. The rule against it exists because
+ * feature detection is more truthful, but "which extension store can this user
+ * install from" is not a feature — Firefox and Chrome expose no API that says
+ * which storefront serves them, and the alternative is showing everyone two
+ * buttons and making them work out which is theirs.
+ *
+ * Order matters: Edge, Opera and Brave all carry "Chrome" in their UA, and
+ * Chrome's UA also carries "Safari". Firefox is checked first because it is the
+ * only unambiguous one.
  */
-const EXTENSION_URL =
-  "https://github.com/Bobi-Labs/bobi-pursuit/tree/main/extension";
+type Flavour = "firefox" | "chrome" | null;
+
+function useBrowserFlavour(): Flavour {
+  const [flavour, setFlavour] = useState<Flavour>(null);
+  useEffect(() => {
+    const ua = navigator.userAgent;
+    if (/firefox|fxios/i.test(ua)) setFlavour("firefox");
+    else if (/chrome|chromium|crios|edg[/]/i.test(ua)) setFlavour("chrome");
+  }, []);
+  return flavour;
+}
 
 /* ─────────────────────────────── Pieces ─────────────────────────────── */
 
@@ -112,86 +135,145 @@ export function CaptureRoutes({ compact = false }: { compact?: boolean }) {
     }
   }, [bookmarklet]);
 
+  const flavour = useBrowserFlavour();
+
+  /* The two store cards, ordered so the user's own browser leads.
+   *
+   * Both are always rendered. Hiding the other store would be a worse bug than
+   * it looks: people install on the laptop they browse on and read the docs on
+   * whatever is open, and a Firefox user reading this on Chrome must still be
+   * able to find the Firefox build. Ordering solves the "which is mine" problem
+   * without taking the other one away. */
+  const stores = [
+    {
+      key: "chrome",
+      name: "Chrome",
+      also: "Edge, Brave, Arc",
+      href: CHROME_EXTENSION_URL,
+    },
+    {
+      key: "firefox",
+      name: "Firefox",
+      also: null,
+      href: FIREFOX_EXTENSION_URL,
+    },
+  ];
+  if (flavour === "firefox") stores.reverse();
+
   return (
-    <div className={cx("grid gap-2.5", compact ? "grid-cols-1" : "md:grid-cols-3")}>
-      {/* ── the front door ── */}
-      <PanelCard className="border-emerald-500/25 bg-emerald-500/[0.04]">
-        <div className="mb-1.5 flex items-center gap-1.5">
-          <span className="text-[14px] font-bold">Browser extension</span>
-          <ColorBadge tone="green">best</ColorBadge>
-        </div>
-        <Prose>
-          A side panel in Chrome, a sidebar in Firefox. Open a posting, click
-          capture, and it reads the description out of the page for you — it
-          knows the layout of the big boards and falls back to your selection
-          anywhere else.
-        </Prose>
-        <ol className="mt-2 space-y-1 text-[14px] leading-relaxed text-muted-foreground">
-          <li>
-            <span className="font-mono text-[12px] text-foreground">1</span>{" "}
-            Download the{" "}
-            <a
-              href={EXTENSION_URL}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="font-medium text-primary hover:underline"
+    <div className="grid gap-2.5">
+      {/* ── the front door, and on a first visit the only door worth reading ── */}
+      <div className={cx("grid gap-2.5", compact ? "grid-cols-1" : "sm:grid-cols-2")}>
+        {stores.map((store, i) => {
+          const isYours = flavour === store.key;
+          return (
+            <PanelCard
+              key={store.key}
+              className={cx(
+                isYours || (flavour === null && i === 0)
+                  ? "border-emerald-500/25 bg-emerald-500/[0.04]"
+                  : undefined,
+              )}
             >
-              extension/ folder ↗
-            </a>{" "}
-            from the repo.
-          </li>
-          <li>
-            <span className="font-mono text-[12px] text-foreground">2</span>{" "}
-            <span className="font-mono text-[12px]">chrome://extensions</span> →
-            Developer mode → <Strong>Load unpacked</Strong> → pick that folder.
-          </li>
-          <li>
-            <span className="font-mono text-[12px] text-foreground">3</span> Open
-            its ⚙ options, choose <Strong>Free app</Strong>, and set the instance
-            URL to{" "}
-            <span className="break-words font-mono text-[12px] text-foreground">
-              {origin || "this page's address"}
-            </span>
-            .
-          </li>
-        </ol>
-      </PanelCard>
+              <div className="mb-1.5 flex items-center gap-1.5">
+                <span className="text-[14px] font-bold">{store.name}</span>
+                {isYours ? (
+                  <ColorBadge tone="green">your browser</ColorBadge>
+                ) : null}
+              </div>
+              <Prose>
+                {store.name === "Chrome"
+                  ? "A side panel. Open a posting, click capture."
+                  : "A sidebar. Open a posting, click capture."}
+              </Prose>
+              <div className="mt-2.5">
+                <a
+                  href={store.href}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-[13px] font-semibold text-primary transition-colors hover:bg-primary/20"
+                >
+                  Install for {store.name} ↗
+                </a>
+                {store.also ? (
+                  <div className="mt-1.5 text-[12px] text-text-muted">
+                    Also {store.also}.
+                  </div>
+                ) : null}
+              </div>
+            </PanelCard>
+          );
+        })}
+      </div>
 
-      {/* ── the no-install route ── */}
-      <PanelCard>
-        <div className="mb-1.5 text-[14px] font-bold">Bookmarklet</div>
-        <Prose>
-          No install, works in any browser. Select the description on a job page,
-          then click the bookmark — the add form opens pre-filled.
-        </Prose>
-        <div className="mt-2.5">
-          <a
-            ref={linkRef}
-            href="#"
-            onClick={(e) => e.preventDefault()}
-            draggable
-            title="Drag this to your bookmarks bar"
-            className="inline-flex cursor-grab items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2.5 py-1.5 text-[12px] font-semibold text-foreground transition-colors hover:border-primary/40 hover:text-primary"
-          >
-            ⬆ Capture to Pursuit
-          </a>
-          <div className="mt-1.5 text-[14px] leading-snug text-text-muted">
-            Drag it to your bookmarks bar. Clicking it here does nothing on
-            purpose — it only means something on a job page.
-          </div>
+      {/* ── everything else, folded away ──
+          The operator's note was that offering three equal routes made the page
+          read as a menu when only one of them is good, and he is right that the
+          extension is the product. These are demoted rather than deleted: the
+          bookmarklet is the only route on Safari, on mobile, and on a locked-down
+          work machine that forbids extensions, and "By hand" is not a competing
+          route at all — it documents the + Capture a job button that sits in the
+          header on every tab regardless. Removing it from the page would not
+          remove it from the app, it would just leave a button nothing explains. */}
+      <details className="group rounded-[10px] border border-border bg-card px-3.5 py-2.5">
+        <summary className="cursor-pointer list-none text-[13px] font-semibold text-muted-foreground transition-colors hover:text-foreground">
+          <span className="inline-block transition-transform group-open:rotate-90">
+            ›
+          </span>{" "}
+          Not on Chrome or Firefox? Two other ways in
+        </summary>
+
+        <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+          <PanelCard>
+            <div className="mb-1.5 text-[14px] font-bold">Bookmarklet</div>
+            <Prose>
+              No install, any browser. Select the description on a job page and
+              click the bookmark.
+            </Prose>
+            <div className="mt-2.5">
+              <a
+                ref={linkRef}
+                href="#"
+                onClick={(e) => e.preventDefault()}
+                draggable
+                title="Drag this to your bookmarks bar"
+                className="inline-flex cursor-grab items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2.5 py-1.5 text-[12px] font-semibold text-foreground transition-colors hover:border-primary/40 hover:text-primary"
+              >
+                ⬆ Capture to Pursuit
+              </a>
+              <div className="mt-1.5 text-[14px] leading-snug text-text-muted">
+                Drag it to your bookmarks bar. Clicking it here does nothing on
+                purpose — it only means something on a job page.
+              </div>
+            </div>
+          </PanelCard>
+
+          <PanelCard>
+            <div className="mb-1.5 text-[14px] font-bold">By hand</div>
+            <Prose>
+              <Strong>+ Capture a job</Strong> in the header. Paste a title and
+              the posting text; everything else is optional.
+            </Prose>
+          </PanelCard>
         </div>
-      </PanelCard>
-
-      {/* ── the always-available route ── */}
-      <PanelCard>
-        <div className="mb-1.5 text-[14px] font-bold">By hand</div>
-        <Prose>
-          <Strong>+ Capture a job</Strong> in the header. Paste a title and the
-          posting text; everything else is optional. It is scored the moment you
-          save it, and the same URL twice is the same card.
-        </Prose>
-      </PanelCard>
+      </details>
     </div>
+  );
+}
+
+function Faq({ q, children }: { q: string; children: ReactNode }) {
+  return (
+    <details className="group border-b border-border last:border-b-0">
+      <summary className="flex cursor-pointer list-none items-center gap-2 py-2.5 text-[14px] font-semibold text-foreground">
+        <span className="inline-block text-muted-foreground transition-transform group-open:rotate-90">
+          ›
+        </span>
+        {q}
+      </summary>
+      <div className="pb-3 pl-5 text-[14px] leading-relaxed text-muted-foreground">
+        {children}
+      </div>
+    </details>
   );
 }
 
@@ -200,6 +282,18 @@ export function CaptureRoutes({ compact = false }: { compact?: boolean }) {
 function Body({ dense = false }: { dense?: boolean }) {
   return (
     <div className="space-y-5">
+      {/* First, and it used to be last.
+          This tab is where the tour's "Start using it" drops you, and the
+          operator's note was that the plugin links were not on the page. They
+          were — at the bottom, under five sections of prose, which for a person
+          who has just been told to start is the same as not being there. The
+          install is the only thing on this page that is an action; everything
+          below it is reference. */}
+      <section>
+        <SectionLabel>Getting jobs in</SectionLabel>
+        <CaptureRoutes compact={dense} />
+      </section>
+
       <section>
         <SectionLabel>What this is</SectionLabel>
         <Prose>
@@ -321,9 +415,39 @@ function Body({ dense = false }: { dense?: boolean }) {
         </div>
       </section>
 
+
+      {/* Answers to the same handful of questions, folded away.
+          The operator floated a whole FAQ tab. A fifth tab is permanent
+          navigation weight for content read once, so this sits at the bottom of
+          the manual instead — one line each until asked for, and easy to promote
+          later if it turns out people hunt for it. */}
       <section>
-        <SectionLabel>Getting jobs in</SectionLabel>
-        <CaptureRoutes compact={dense} />
+        <SectionLabel>Common questions</SectionLabel>
+        <div className="rounded-[10px] border border-border bg-card px-3.5">
+          <Faq q="Do I need an account?">
+            No. There is no sign-up and no server of ours to sign up to.
+          </Faq>
+          <Faq q="Where does my data actually live?">
+            In this browser, and nowhere else. <Strong>Export</Strong> in
+            Settings is your only backup — clearing your browser data clears the
+            pipeline.
+          </Faq>
+          <Faq q="Do I need an Anthropic key?">
+            No. Every job is scored without one. A key only lets Claude read a
+            posting you have already captured more carefully.
+          </Faq>
+          <Faq q="Does it search or scrape job boards for me?">
+            No. Nothing arrives on its own and nothing runs while this tab is
+            closed. You capture what you are already looking at.
+          </Faq>
+          <Faq q="Does it apply to jobs for me?">
+            No. Applying is a step only you can take.
+          </Faq>
+          <Faq q="Can I use it on my phone?">
+            The bookmarklet works anywhere. The extensions are desktop Chrome and
+            Firefox only.
+          </Faq>
+        </div>
       </section>
     </div>
   );

@@ -81,7 +81,10 @@ export function OverviewPanel({
         }
       />
 
-      <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div
+        data-tour="overview-counts"
+        className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4"
+      >
         <KpiCard
           label="Captured"
           value={String(jobs.length)}

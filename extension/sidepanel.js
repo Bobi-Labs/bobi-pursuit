@@ -325,7 +325,26 @@ async function loadSummary() {
 // container beats the generic <main> fallback. Selection always wins over
 // all of it — if the operator highlights the JD, we trust that.
 function extractJob() {
+  // Single-line fields: collapse everything. Right for a title or a company.
   const clip = (s, n) => (s || "").replace(/\s+/g, " ").trim().slice(0, n);
+
+  /* The posting body, which must NOT be flattened.
+   *
+   * `clip` collapses \s+ — newlines included — so every capture arrived as one
+   * unbroken wall of text. The app renders the description with
+   * `whitespace-pre-wrap` and always has; there was simply nothing left to
+   * render by the time it got there.
+   *
+   * Collapses runs of spaces and tabs, keeps single newlines, and squeezes
+   * three-or-more blank lines down to one. */
+  const clipBody = (s, n) =>
+    (s || "")
+      .replace(/\r\n?/g, "\n")
+      .replace(/[ \t\u00a0]+/g, " ")
+      .replace(/ *\n */g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
+      .slice(0, n);
   const meta = (p) =>
     document.querySelector(`meta[property="${p}"],meta[name="${p}"]`)?.content || "";
 
@@ -351,6 +370,11 @@ function extractJob() {
     ".jobDescriptionContent",
     // Wellfound / AngelList
     '[data-test="JobDescription"]',
+    // RemoteOK — nothing matched here, which is how a capture ended up with
+    // forty other companies' listings in it. Microdata rather than a class,
+    // so it also picks up any other board using schema.org attributes.
+    '[itemprop="description"]',
+    "div.markdown",
     // Generic ATS embeds
     "#content .section-wrapper",
     ".job-description",
@@ -383,7 +407,19 @@ function extractJob() {
    * of the posting sitting right there in the page the user opened. Falls back
    * to og:site_name and the hostname, which are worse but never wrong enough to
    * matter — the user reviews everything on the add form before saving. */
-  const jobPosting = (() => {
+  /* Every JobPosting on the page, then the one this page is actually about.
+   *
+   * Taking the first match was the original approach and it is a coin flip on
+   * any board that lists related jobs: this posting on RemoteOK carries **51**
+   * JobPosting blocks, fifty of them other people's vacancies. The right one
+   * happened to be first there, which is exactly the kind of luck that holds
+   * until it does not — and the failure would be silent and specific, filing a
+   * capture under the wrong company at the wrong salary.
+   *
+   * So candidates are scored against the page's own headline. An exact title
+   * match wins; otherwise the first is used, which is no worse than before. */
+  const jobPostings = (() => {
+    const out = [];
     for (const node of document.querySelectorAll('script[type="application/ld+json"]')) {
       let data;
       try {
@@ -394,10 +430,36 @@ function extractJob() {
       // @graph, bare arrays and single objects all occur in the wild.
       const items = Array.isArray(data) ? data : data && data["@graph"] ? data["@graph"] : [data];
       for (const item of items) {
-        if (item && item["@type"] === "JobPosting") return item;
+        if (item && item["@type"] === "JobPosting") out.push(item);
       }
     }
-    return null;
+    return out;
+  })();
+
+  const jobPosting = (() => {
+    if (jobPostings.length <= 1) return jobPostings[0] || null;
+    const norm = (v) => clip(v, 200).toLowerCase().replace(/[^a-z0-9 ]/g, "");
+    const heading = norm(
+      document.querySelector("h1")?.innerText ||
+        meta("og:title") ||
+        document.title,
+    );
+    if (heading) {
+      const exact = jobPostings.find((j) => norm(j.title) && norm(j.title) === heading);
+      if (exact) return exact;
+      // Headings are routinely decorated — "Remote X (~$350k) at Co" wraps the
+      // plain title — so containment counts, longest title first so a short
+      // generic one cannot win by being a substring of everything.
+      const byLength = [...jobPostings].sort(
+        (a, b) => norm(b.title).length - norm(a.title).length,
+      );
+      const contained = byLength.find((j) => {
+        const t = norm(j.title);
+        return t.length > 6 && heading.includes(t);
+      });
+      if (contained) return contained;
+    }
+    return jobPostings[0];
   })();
 
   const orgName = (org) => {
@@ -455,9 +517,46 @@ function extractJob() {
     return clip(`${cur ? cur + " " : ""}${range}${period}`, 80);
   })();
 
+  /* The publisher's own description, when the page states one.
+   *
+   * This is the same structured block the company and salary come from, and it
+   * is strictly better than scraping the rendered page: no nav, no "related
+   * jobs", no "Upgrade to Premium" — the capture that prompted this arrived
+   * with forty other companies' listings appended to it, because no selector
+   * matched and the extractor fell back to document.body.
+   *
+   * A user's own SELECTION still wins, because selecting text is an explicit
+   * instruction and the whole product is built on not overriding those. */
+  const ldDescription = (() => {
+    const raw = jobPosting && typeof jobPosting.description === "string"
+      ? jobPosting.description
+      : "";
+    if (!raw) return "";
+    // schema.org allows HTML here and most boards use it.
+    const text = raw
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/(p|div|li|h[1-6]|tr)>/gi, "\n")
+      .replace(/<li[^>]*>/gi, "• ")
+      .replace(/<[^>]+>/g, "")
+      .replace(/&nbsp;/gi, " ")
+      .replace(/&amp;/gi, "&")
+      .replace(/&lt;/gi, "<")
+      .replace(/&gt;/gi, ">")
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;/gi, "'");
+    return clipBody(text, 11000);
+  })();
+
   const selection = String(window.getSelection ? window.getSelection() : "");
   let body = selection;
   let via = "selection";
+
+  // Order: your selection, then the publisher's own structured description,
+  // then the per-site selectors, then the page body as a last resort.
+  if (clip(body, 40).length < 40 && ldDescription.length >= 200) {
+    body = ldDescription;
+    via = "json-ld";
+  }
 
   if (clip(body, 40).length < 40) {
     via = "fallback";
@@ -482,7 +581,7 @@ function extractJob() {
     company,
     budgetHint,
     url: location.href,
-    description: clip(body, 11000),
+    description: clipBody(body, 11000),
     usedSelection: via === "selection",
     via,
   };

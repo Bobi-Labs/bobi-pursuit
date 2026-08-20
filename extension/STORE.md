@@ -129,6 +129,66 @@ unreadable, and that tile sits beside search results.
 All images must be 24-bit PNG with no alpha. Puppeteer emits colour type 2, so
 this is already satisfied; worth re-checking if the capture ever changes.
 
+## Where each version actually is
+
+The two stores review independently and at different speeds, so the repo's
+manifest version, what is live on Chrome, and what is live on Firefox are
+routinely **three different numbers**. Nothing tracked that, and five versions
+in it was already hard to answer from memory.
+
+| | Chrome | Firefox |
+|---|---|---|
+| Live | 0.1.1 _(unconfirmed — see below)_ | **0.1.3** _(API-verified)_ |
+| In review | 0.1.2 or 0.1.3 (dashboard only) | 0.1.4 |
+| Built in repo | 0.1.4 | 0.1.4 |
+
+_Checked 2026-08-20 with the commands below, not from memory — and the check
+immediately corrected a guess of 0.1.2 for Chrome. Assume this table is stale._
+
+**Chrome cannot be submitted while a review is pending**, which is why 0.1.4 is
+built and waiting: the 0.1.3 review has to clear first. Firefox accepts a new
+submission over a pending one.
+
+### Re-deriving it, because a hand-kept table always rots
+
+Firefox has a public API, needs no login, and is authoritative:
+
+```bash
+curl -s "https://addons.mozilla.org/api/v5/addons/addon/bobi-pursuit-capture@bobilabs.dev/" \
+  | grep -o '"version":"[^"]*"' | head -1
+```
+
+**Chrome has no reliable public version check. Use the dashboard.**
+
+That is a conclusion reached by trying, and the failed attempts are recorded so
+nobody repeats them. The number is not labelled "version" anywhere in the
+markup, so grepping for that finds nothing. Matching the version *shape* instead
+looks like it works and does not — on 2026-08-20 the listing contained three:
+
+```
+0.0.59   0.1.1   0.23.21
+```
+
+Two of those are Google's own asset versions. `0.1.1` was almost certainly ours,
+but "almost certainly" is not a version check, and next month a Google asset
+could easily land on `0.1.4` and read as a successful deploy of the exact thing
+you are waiting for. **A check that can silently return someone else's number is
+worse than no check.**
+
+If you fetch the page for any other reason, two traps apply. **`-L` and a user
+agent are both required** — without them it returns zero bytes, which reads like
+"not found" rather than "the fetch failed". And **the store answers 200 for an
+id that does not exist**, serving a shell that 404s client-side, so status
+proves nothing; the discriminating signal is the server-rendered `og:title`,
+which reads "Bobi-Pursuit — Capture" for the real listing and a generic
+"Chrome Web Store" for anything else.
+
+Anything **in review** is only visible in the two developer dashboards. If the
+live numbers above match the repo manifest, nothing is pending.
+
+**The manifest version is not evidence of anything being shipped.** It only says
+what the last `node extension/build.mjs` produced.
+
 ## Before you submit
 
 - [ ] Chrome: one-time $5 developer registration, if this is the first listing.

@@ -85,3 +85,23 @@ export const STUDIO_URL: string | null = "https://bobilabs.dev";
 /** Company page. */
 export const STUDIO_LINKEDIN_URL: string | null =
   "https://www.linkedin.com/company/bobi-labs";
+
+/**
+ * The sibling product, cross-linked.
+ *
+ * Named **Bobi Tracker**, no hyphen — that is what its own page and title tag
+ * call it, and a product's name is not ours to restyle on a public surface even
+ * by one character.
+ *
+ * It earns the space because it is the same promise rather than an advert: a
+ * free kanban board with no account and no server, from the people who built
+ * the thing you are already using. Anyone who trusts this app's "nothing leaves
+ * your browser" has already decided how they feel about that offer.
+ *
+ * Null in a fork. Nobody forking this should be marketing our other products.
+ */
+export const SIBLING_PRODUCT: { name: string; url: string; blurb: string } | null = {
+  name: "Bobi Tracker",
+  url: "https://bobilabs.dev/worktracker",
+  blurb: "free kanban board, no account",
+};

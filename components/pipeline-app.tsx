@@ -75,6 +75,7 @@ import {
   FEEDBACK_URL,
   REPO_URL,
   STUDIO_LINKEDIN_URL,
+  SIBLING_PRODUCT,
   STUDIO_LINKS_URL,
   STUDIO_URL,
 } from "@/lib/app-config";
@@ -802,7 +803,29 @@ export default function PipelineApp({
               </>
             )}
 
-            <span className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            {/* The middle of the row, which was empty. Same register as the
+                rest of this bar — small, muted, no button — because it is a
+                suggestion from one free tool to another, not a placement. */}
+            {SIBLING_PRODUCT && (
+              <a
+                href={SIBLING_PRODUCT.url}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="mx-auto inline-flex items-center gap-1.5 transition-colors hover:text-foreground"
+              >
+                <span aria-hidden>◧</span>
+                Also free:{" "}
+                <span className="font-semibold text-muted-foreground">
+                  {SIBLING_PRODUCT.name}
+                </span>
+                <span className="hidden sm:inline">
+                  {" — "}
+                  {SIBLING_PRODUCT.blurb} ↗
+                </span>
+              </a>
+            )}
+
+            <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
               {STUDIO_URL && (
                 <a
                   href={STUDIO_URL}

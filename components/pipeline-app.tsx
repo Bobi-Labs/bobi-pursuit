@@ -1172,7 +1172,38 @@ function PipelinePanel({
 
       {sub === "working" ? (
         totalJobs === 0 ? (
-          <EmptyBoard onCapture={onCapture} onLoadSample={onLoadSample} />
+          /* An empty board still shows its columns.
+           *
+           * It used to render one centred call to action and nothing else,
+           * which meant the four columns did not exist in the single state
+           * every new user is in — and the tour's three board stops had
+           * nothing to ring and nothing to explain. The operator hit exactly
+           * that: step 3 of 9, on a blank page, being told about four columns
+           * he could not see.
+           *
+           * Now the prompt sits above the real board, every column carries its
+           * placeholder saying what it is for, and the tour has something to
+           * point at. It is also the answer to the original request — a worked
+           * example in every column — without seeding fake cards that would
+           * score, count and need deleting. */
+          <>
+            <EmptyBoard onCapture={onCapture} onLoadSample={onLoadSample} />
+            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[1.3fr_1fr_1fr_1fr]">
+              {COLUMNS.map((column) => (
+                <KanbanCol
+                  key={column.status}
+                  label={column.label}
+                  count={0}
+                  hint={column.hint}
+                  emptyGets={column.gets}
+                  emptyThen={column.then}
+                  anchor={`col-${column.status}`}
+                >
+                  {null}
+                </KanbanCol>
+              ))}
+            </div>
+          </>
         ) : working.length === 0 ? (
           <NoMatches
             filtersActive={filtersActive}
@@ -1325,14 +1356,15 @@ function EmptyBoard({
   onLoadSample: () => void;
 }) {
   return (
-    <div className="py-16 text-center">
+    // Compact now that the columns render beneath it: this was a full-page
+    // empty state and is a prompt sitting on top of a real board.
+    <div className="py-6 text-center">
       <div className="text-[14px] font-bold">The board is empty</div>
       <p className="mx-auto mt-1.5 max-w-md text-[14px] leading-relaxed text-muted-foreground">
         Jobs arrive by capture — the extension, the bookmarklet, or the add form.
-        Load the sample pipeline if you would rather see a full board before
-        committing to anything.
+        Each column below says what it is for.
       </p>
-      <div className="mt-4 flex flex-wrap justify-center gap-2">
+      <div className="mt-3 flex flex-wrap justify-center gap-2">
         <Button size="md" variant="primary" onClick={onLoadSample}>
           Load sample data
         </Button>

@@ -395,7 +395,27 @@ function SavedSearches({
   searches: SavedSearch[];
   onRemove: (id: string) => void;
 }) {
-  if (searches.length === 0) return null;
+  /* Renders even when empty, which is the whole point.
+   *
+   * It used to return null until you had saved something, so the feature was
+   * invisible to everyone who had not already found it — the operator asked
+   * "where do I save those, and where do I see them?", which is the question a
+   * hidden empty state guarantees. One line now says where the button is. */
+  if (searches.length === 0) {
+    return (
+      <div className="mb-4 rounded-[10px] border border-dashed border-border bg-card/40 p-3">
+        <div className="mb-1 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Your searches
+        </div>
+        <div className="text-[14px] leading-snug text-text-muted">
+          Tune a search on any site below — your filters, your salary floor —
+          then use <span className="font-semibold text-foreground">+ Save a
+          search here</span> on that site&apos;s card to keep it. They land back
+          up here, one click to reopen.
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="mb-4 rounded-[10px] border border-border bg-card p-3">
       <div className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">

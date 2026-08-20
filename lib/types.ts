@@ -418,6 +418,42 @@ export const PROFILE_PRESETS: ProfilePreset[] = [
     ],
   },
   {
+    key: "admin",
+    label: "Administration / PA",
+    blurb: "Keeping a person, a team or an office running.",
+    name: "Administration",
+    short: "Admin",
+    tone: "blue",
+    description:
+      "Administrative and assistant roles where the job is keeping a person, a team or an office running: executive assistant, personal assistant, office manager, senior administrator, team coordinator. Diary and inbox ownership for people whose time is the constraint, travel and meetings booked properly the first time, records kept so the right version is findable a year later, and the invisible work that stops a week falling apart. Discretion with confidential material is assumed rather than listed. Full-time or part-time, in-house rather than through an agency. Not a call-centre seat and not general data entry.",
+    // Multi-word vocabulary only, for the same reason the product preset gives:
+    // a keyword found in the TITLE counts double, and bare "admin", "office" or
+    // "assistant" appear in half the postings on the internet — including
+    // "admin panel" and "assistant manager", which are not this job.
+    keywords: [
+      "executive assistant",
+      "personal assistant",
+      "administrative assistant",
+      "office manager",
+      "office administrator",
+      "senior administrator",
+      "administrative coordinator",
+      "team coordinator",
+      "executive support",
+      "diary management",
+      "calendar management",
+      "travel coordination",
+      "minute taking",
+    ],
+    excludeKeywords: [
+      "unpaid",
+      "commission only",
+      "cold calling",
+      "door to door",
+      "security clearance",
+    ],
+  },
+  {
     key: "people",
     label: "People / HR",
     blurb: "Hiring, culture, and the systems behind both.",
@@ -615,27 +651,62 @@ export function profileFromPreset(
 /**
  * Where a job sits.
  *
- * Note the third stage is `applied`, not `drafted`: the free tier has no
- * proposal drafter, so nothing moves a job forward except the operator saying
- * "I sent it". A stage the software cannot advance on its own is an honest
- * stage.
+ * Nothing here moves on its own. The free tier has no proposal drafter and no
+ * way to read your email, so every one of these transitions happens because a
+ * person said it happened. A stage the software cannot advance on its own is an
+ * honest stage.
+ *
+ * **`applied` is no longer the end.** It was, and that made the board stop
+ * exactly where a job hunt gets interesting: you send an application and then
+ * something happens, or — far more often — nothing does. Two stages close the
+ * loop:
+ *
+ *  - `interviewing` — they came back and something is live. Deliberately ONE
+ *    flat stage: no phone-screen / technical / onsite ladder. Which round you
+ *    are on is a line of notes, not a schema.
+ *  - `declined` — they said no.
+ *
+ * **`ignored` is "skipped", and there is deliberately no separate `skipped`
+ * value.** The two words describe one state that already existed — the card
+ * button says "Skip" and the destination reads "Ignored", which is why they
+ * sounded like different things. The distinction worth keeping is a different
+ * one, and these two values carry it exactly: **`declined` is their decision
+ * after you applied; `ignored` is your decision before you did.**
  */
-export type PipelineStatus = "triage" | "promoted" | "applied" | "ignored";
+export type PipelineStatus =
+  | "triage"
+  | "promoted"
+  | "applied"
+  | "interviewing"
+  | "declined"
+  | "ignored";
 
-/** Canonical left-to-right board order. */
+/** Canonical order: the live board left to right, then the two closed states. */
 export const PIPELINE_STATUSES: PipelineStatus[] = [
   "triage",
   "promoted",
   "applied",
+  "interviewing",
+  "declined",
   "ignored",
 ];
 
+/**
+ * Derived from the array on purpose.
+ *
+ * This was a hand-written `value === "triage" || …` chain, which made the list
+ * above and the guard two independent copies of the same fact. Adding a status
+ * to one and not the other compiles perfectly cleanly and then fails at
+ * runtime in the worst available way: `repairJob` coerces anything this guard
+ * rejects to "triage" and writes the flattened document straight back to
+ * localStorage. A silent, permanent demotion of every card in the new stage.
+ *
+ * One list now. `isColorTone` already does it this way.
+ */
 export function isPipelineStatus(value: unknown): value is PipelineStatus {
   return (
-    value === "triage" ||
-    value === "promoted" ||
-    value === "applied" ||
-    value === "ignored"
+    typeof value === "string" &&
+    (PIPELINE_STATUSES as string[]).includes(value)
   );
 }
 
@@ -691,6 +762,22 @@ export interface Job {
   notes: string;
   createdAt: string;
   updatedAt: string;
+  /**
+   * When `pipelineStatus` last changed — NOT when the job was last edited.
+   *
+   * The difference is the entire point. `updatedAt` moves on every write,
+   * including a keystroke in the notes box, so "how long has this been sitting
+   * in Applied" cannot be answered from it: jotting "emailed them Tuesday" on
+   * the job you are chasing hardest would reset its age to zero, which is
+   * exactly backwards. This field only moves when the card does.
+   *
+   * Optional in practice rather than in type: `repairJob` fills it from
+   * `updatedAt` for any document written before it existed, so every saved
+   * board self-heals on load with no migration function. Those values are
+   * approximations of history, which is honest — the real history was never
+   * recorded and cannot be reconstructed.
+   */
+  statusChangedAt: string;
   score: JobScore | null;
 }
 
@@ -711,7 +798,23 @@ export interface PursuitSettings {
   bio: string;
   /** 1..5, enforced by the UI and by the store's repair pass. Order is meaningful. */
   profiles: Profile[];
+  /**
+   * The money floor, always stored **per hour**, whatever the user types.
+   *
+   * Keeping one canonical unit is the whole design. The rule scorer already
+   * understands salaries — it compares a posting's annual figure against
+   * `targetHourlyRate * FTE_HOURS_PER_YEAR` — so supporting salary input never
+   * needed a scoring change, only a way to say it. Storing whichever unit the
+   * user last picked would have meant every consumer of this field asking
+   * "which unit is this?" and one of them eventually forgetting.
+   */
   targetHourlyRate: number;
+  /**
+   * Which unit the rate field *displays*. Presentation only; nothing scores off
+   * it. Absent in documents written before this existed, which `repairSettings`
+   * fills as "hourly" — the behaviour those users already had.
+   */
+  rateMode: "hourly" | "annual";
   eligibleLocations: string[];
   /**
    * Tier 2 only; `""` here. **Never written to an export** — see
@@ -729,7 +832,20 @@ export interface PursuitSettings {
  * keys to profile ids. The store migrates on load, reusing the three legacy ids
  * so existing scores keep resolving. See `migrateSettings()` in the store.
  */
-export const SCHEMA_VERSION = 2;
+/**
+ * Bumped 2 → 3 when `interviewing` and `declined` were added.
+ *
+ * Backwards this changes nothing: an old document contains only old values and
+ * `version > SCHEMA_VERSION` is false, so every saved board opens untouched.
+ *
+ * It exists for FORWARD safety, and the case is specific. Without the bump, a
+ * tab left open across a deploy runs the previous build against a document
+ * containing the new statuses, `repairJob` coerces each of them to "triage",
+ * and the flattened document is written back — silently, permanently, landing
+ * on the interview you were waiting for. With the bump that build refuses at
+ * the gate and sets the raw copy aside instead. Alarming, loud, recoverable.
+ */
+export const SCHEMA_VERSION = 3;
 
 /** Stamped on every document so an importer can reject a foreign JSON file. */
 export const DOC_KIND = "bobi-pursuit.pipeline";
@@ -796,6 +912,7 @@ export function defaultSettings(): PursuitSettings {
       },
     ],
     targetHourlyRate: 75,
+    rateMode: "hourly",
     eligibleLocations: ["remote"],
     anthropicApiKey: "",
   };

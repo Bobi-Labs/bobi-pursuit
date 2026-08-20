@@ -46,15 +46,25 @@ const STATUS_LABEL: Record<PipelineStatus, string> = {
   triage: "Triage",
   promoted: "Promoted",
   applied: "Applied",
-  ignored: "Ignored",
+  interviewing: "Interviewing",
+  declined: "Declined",
+  // The card button has always said "Skip"; only the destination said
+  // "Ignored". One word now, because two names for one state is what made them
+  // read as two different states.
+  ignored: "Skipped",
 };
 
 const STATUS_TONE = {
   triage: "cyan",
   promoted: "green",
   applied: "blue",
+  interviewing: "purple",
+  declined: "rose",
   ignored: "muted",
 } as const;
+
+/** Statuses a company can respond to. You cannot be rejected from a job you never sent. */
+const SENT: PipelineStatus[] = ["applied", "interviewing", "declined"];
 
 type StudioSub = "overview" | "scoring" | "reasoning" | "notes";
 
@@ -256,7 +266,7 @@ export function JobStudioPanel({
                 label: "Promoted",
                 done:
                   job.pipelineStatus === "promoted" ||
-                  job.pipelineStatus === "applied",
+                  SENT.includes(job.pipelineStatus),
                 note:
                   job.pipelineStatus === "ignored"
                     ? "skipped — restore to reconsider"
@@ -266,11 +276,24 @@ export function JobStudioPanel({
               },
               {
                 label: "Applied",
-                done: job.pipelineStatus === "applied",
+                done: SENT.includes(job.pipelineStatus),
+                note: SENT.includes(job.pipelineStatus)
+                  ? undefined
+                  : "nothing here can send it for you",
+              },
+              {
+                label: "Response",
+                done:
+                  job.pipelineStatus === "interviewing" ||
+                  job.pipelineStatus === "declined",
                 note:
-                  job.pipelineStatus === "applied"
-                    ? undefined
-                    : "nothing here can send it for you",
+                  job.pipelineStatus === "interviewing"
+                    ? "they came back — something is live"
+                    : job.pipelineStatus === "declined"
+                      ? "they said no"
+                      : job.pipelineStatus === "applied"
+                        ? "nothing back yet"
+                        : "nothing sent yet",
               },
             ].map((step) => (
               <div key={step.label} className="flex items-start gap-2">
@@ -303,18 +326,65 @@ export function JobStudioPanel({
             ))}
           </div>
 
-          <div className="flex flex-wrap gap-1">
-            {PIPELINE_STATUSES.map((status) => (
-              <Button
-                key={status}
-                size="sm"
-                variant={status === job.pipelineStatus ? "primary" : "default"}
-                disabled={status === job.pipelineStatus}
-                onClick={() => onStatus(status)}
-              >
-                {STATUS_LABEL[status]}
-              </Button>
-            ))}
+          {/* Company response — and the gate is the point.
+              This is the only transition in the app that is not yours to make:
+              it records something someone else did. So it appears only once the
+              application exists. On a Triage or Promoted card the control is
+              ABSENT rather than disabled, because a disabled button still says
+              "this is a thing that happens here", and being declined for a job
+              you never applied to is not.
+
+              The button matching the current status stays visible and disabled,
+              so the row doubles as a readout of where this stands. */}
+          {SENT.includes(job.pipelineStatus) ? (
+            <div className="rounded-[10px] border border-border bg-card p-2.5">
+              <div className="mb-1.5 text-[14px] font-semibold text-foreground">
+                Company response?
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {(["interviewing", "declined"] as const).map((status) => (
+                  <Button
+                    key={status}
+                    size="sm"
+                    variant={status === job.pipelineStatus ? "primary" : "default"}
+                    disabled={status === job.pipelineStatus}
+                    onClick={() => onStatus(status)}
+                  >
+                    {STATUS_LABEL[status]}
+                  </Button>
+                ))}
+              </div>
+              {job.pipelineStatus === "applied" ? (
+                <div className="mt-1.5 text-[14px] leading-snug text-text-muted">
+                  Nothing back yet is a normal state, and the commonest one.
+                  This only changes when you say so.
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {/* Every other move, including every way back. Filtered to the
+              stages you drive, so the two above stay the response and these
+              stay the decisions. */}
+          <div>
+            <div className="mb-1 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Move to
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {PIPELINE_STATUSES.filter(
+                (status) => status !== "interviewing" && status !== "declined",
+              ).map((status) => (
+                <Button
+                  key={status}
+                  size="sm"
+                  variant={status === job.pipelineStatus ? "primary" : "default"}
+                  disabled={status === job.pipelineStatus}
+                  onClick={() => onStatus(status)}
+                >
+                  {STATUS_LABEL[status]}
+                </Button>
+              ))}
+            </div>
           </div>
 
           {/* The upgrade, offered per job.

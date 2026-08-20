@@ -204,7 +204,7 @@ export const TOUR_STOPS: readonly TourStop[] = [
     tab: "overview",
     anchor: "overview-counts",
     title: "Start here when you come back",
-    body: <>Four counts. Each one is a button into that slice of the board.</>,
+    body: <>Five counts. Each one is a button into that slice of the board.</>,
   },
   {
     key: "pipeline",
@@ -214,8 +214,8 @@ export const TOUR_STOPS: readonly TourStop[] = [
     title: "Decide once, not four times",
     body: (
       <>
-        Promote what is worth an afternoon, skip the rest. Skipped goes to
-        Ignored — kept, not deleted.
+        Promote, apply, then mark what comes back. Declined and Skipped are
+        kept, not deleted.
       </>
     ),
   },

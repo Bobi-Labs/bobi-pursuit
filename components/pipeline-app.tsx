@@ -78,7 +78,11 @@ import {
 export type TabKey = "overview" | "pipeline" | "studio" | "howitworks";
 type View = "kanban" | "table";
 type SortKey = "fit" | "newest";
-type BoardStatus = Exclude<PipelineStatus, "ignored">;
+/**
+ * Which sub-tab the pipeline is showing. "working" is the board; the other two
+ * are closed piles you visit rather than work.
+ */
+type BoardSub = "working" | "declined" | "ignored";
 
 const TABS: FolderTab<TabKey>[] = [
   { key: "overview", label: "Overview" },
@@ -144,7 +148,7 @@ const PATH_TAB = new Map<string, TabKey>(
 interface ViewSession {
   selectedId: string | null;
   view: View;
-  sub: "working" | "ignored";
+  sub: BoardSub;
   query: string;
   track: string;
   minFit: number;
@@ -193,16 +197,32 @@ function useSessionState<K extends keyof ViewSession>(
   return [value, set];
 }
 
-const COLUMNS: { status: BoardStatus; label: string; hint: string }[] = [
+/**
+ * The board, left to right. This array is the ONLY definition of what the
+ * kanban shows, and `BOARD_SET` below derives from it.
+ *
+ * It used to be typed `Exclude<PipelineStatus, "ignored">`, which quietly meant
+ * "everything that is not ignored" — so adding a status put it in the Working
+ * count and the table view while giving it no column to render in. The compiler
+ * had nothing to say about it, because an array is allowed to be short. Deriving
+ * the set from the columns makes the two agree by construction.
+ */
+const COLUMNS: { status: PipelineStatus; label: string; hint: string }[] = [
   { status: "triage", label: "Triage", hint: "Everything new. Decide, don’t read." },
   { status: "promoted", label: "Promoted", hint: "Worth an afternoon." },
-  { status: "applied", label: "Applied", hint: "You sent it." },
+  { status: "applied", label: "Applied", hint: "Sent. Waiting." },
+  { status: "interviewing", label: "Interviewing", hint: "They came back." },
 ];
+
+/** Exactly the statuses with a column. Anything else is a closed pile. */
+const BOARD_SET = new Set<PipelineStatus>(COLUMNS.map((c) => c.status));
 
 const STATUS_TONE = {
   triage: "cyan",
   promoted: "green",
   applied: "blue",
+  interviewing: "purple",
+  declined: "rose",
   ignored: "muted",
 } as const;
 
@@ -360,14 +380,18 @@ export default function PipelineApp({
       triage: [],
       promoted: [],
       applied: [],
+      interviewing: [],
+      declined: [],
       ignored: [],
     };
     for (const job of sorted) groups[job.pipelineStatus].push(job);
     return groups;
   }, [sorted]);
 
+  // Derived from the columns, not from "everything except ignored" — see the
+  // note on COLUMNS. A status with no column is not silently working.
   const working = useMemo(
-    () => sorted.filter((job) => job.pipelineStatus !== "ignored"),
+    () => sorted.filter((job) => BOARD_SET.has(job.pipelineStatus)),
     [sorted],
   );
 
@@ -395,7 +419,8 @@ export default function PipelineApp({
   const goPipeline = useCallback(
     (stage?: PipelineStatus) => {
       goTab("pipeline");
-      setSub(stage === "ignored" ? "ignored" : "working");
+      // A closed pile has its own tab; everything with a column is "working".
+      setSub(stage === "ignored" || stage === "declined" ? stage : "working");
     },
     [goTab],
   );
@@ -777,8 +802,8 @@ function PipelinePanel({
   selectedId: string | null;
   view: View;
   onView: (v: View) => void;
-  sub: "working" | "ignored";
-  onSub: (v: "working" | "ignored") => void;
+  sub: BoardSub;
+  onSub: (v: BoardSub) => void;
   query: string;
   onQuery: (v: string) => void;
   track: string;
@@ -805,16 +830,29 @@ function PipelinePanel({
     />
   );
 
+  // Whichever closed pile the sub-tab is showing. Both render through the same
+  // JobTable, and both are already filtered by the search box and track chips —
+  // `grouped` derives from `sorted` from `filtered`, so the archive is
+  // searchable on day one without a line of new code.
+  const closed = sub === "declined" ? grouped.declined : grouped.ignored;
+
   return (
     <div>
       <PanelHeader
         title="Pipeline"
-        sub="Triage is everything captured and undecided — Promote what is worth an afternoon, Skip the rest. Applied is a step only you can take: nothing here can send anything for you. Ignored is kept, out of the way, and restorable."
+        sub="Triage is everything captured and undecided — Promote what is worth an afternoon, Skip the rest. Applied and Interviewing are steps only you can take: nothing here can send anything, or know that anyone replied. Declined and Skipped are kept, out of the way, and restorable."
         actions={
           sub === "working" ? <ViewToggle value={view} options={VIEWS} onChange={onView} /> : undefined
         }
       />
 
+      {/* Two closed piles, and they are not the same thing.
+          Declined is THEIR decision, after you applied. Ignored is YOUR
+          decision, before you did. Keeping them apart is what makes the archive
+          answer "have I already been turned down here?" rather than just
+          "have I seen this before?". Both live behind a tab rather than as
+          board columns, because a column of finished work crowds the live ones
+          and neither needs deciding again. */}
       <div className="mb-4 flex border-b border-border">
         <SubTabBtn
           active={sub === "working"}
@@ -824,11 +862,18 @@ function PipelinePanel({
           Working
         </SubTabBtn>
         <SubTabBtn
+          active={sub === "declined"}
+          onClick={() => onSub("declined")}
+          count={grouped.declined.length}
+        >
+          Declined
+        </SubTabBtn>
+        <SubTabBtn
           active={sub === "ignored"}
           onClick={() => onSub("ignored")}
           count={grouped.ignored.length}
         >
-          Ignored
+          Skipped
         </SubTabBtn>
       </div>
 
@@ -904,7 +949,10 @@ function PipelinePanel({
             onOpen={onOpenJob}
           />
         ) : (
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.4fr_1fr_1fr]">
+          /* Four across only at xl. A 1024px laptop gets two comfortable columns
+             rather than four cramped ones, and Triage stays widest because it is
+             the only column you actually read in. */
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[1.3fr_1fr_1fr_1fr]">
             {COLUMNS.map((column) => (
               <KanbanCol
                 key={column.status}
@@ -917,14 +965,15 @@ function PipelinePanel({
             ))}
           </div>
         )
-      ) : grouped.ignored.length === 0 ? (
+      ) : closed.length === 0 ? (
         <div className="py-16 text-center text-[14px] text-muted-foreground">
-          Nothing skipped. Anything you Skip lands here — kept, not deleted, and
-          one click from going back into Triage.
+          {sub === "declined"
+            ? "Nothing declined yet. When a company says no, mark it here — it stays searchable so you know you have already been through them."
+            : "Nothing skipped. Anything you Skip lands here — kept, not deleted, and one click from going back into Triage."}
         </div>
       ) : (
         <JobTable
-          jobs={grouped.ignored}
+          jobs={closed}
           profiles={profiles}
           selectedId={selectedId}
           onOpen={onOpenJob}
@@ -943,13 +992,16 @@ function Skeleton() {
   return (
     <div className="animate-pulse">
       <div className="h-4 w-40 rounded bg-muted" />
-      <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
-        {[0, 1, 2, 3].map((cell) => (
+      {/* Cell and column counts match the real grids above. A skeleton that
+          shows four boxes and then paints five is a layout jump on every cold
+          load — small, but it is the first thing the app does. */}
+      <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
+        {[0, 1, 2, 3, 4].map((cell) => (
           <div key={cell} className="h-[86px] rounded-[10px] bg-muted/60" />
         ))}
       </div>
-      <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
-        {[0, 1, 2].map((column) => (
+      <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {[0, 1, 2, 3].map((column) => (
           <div
             key={column}
             className="rounded-[10px] border border-border bg-muted/30 p-3"

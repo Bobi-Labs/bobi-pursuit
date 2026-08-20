@@ -363,6 +363,11 @@ function repairJob(raw: unknown, ts: string, profiles: Profile[]): Job | null {
     notes: str(raw.notes),
     createdAt: str(raw.createdAt) || ts,
     updatedAt: str(raw.updatedAt) || ts,
+    // Falls back through updatedAt so a document written before this field
+    // existed heals itself on load — no migration function, no data loss. The
+    // fallback is an approximation of history rather than history: the real
+    // moment this card last moved was never recorded and cannot be recovered.
+    statusChangedAt: str(raw.statusChangedAt) || str(raw.updatedAt) || ts,
     score: repairScore(raw.score, profiles),
   };
 }
@@ -508,6 +513,9 @@ function repairSettings(raw: unknown): PursuitSettings {
     bio: str(raw.bio, base.bio),
     profiles: repairProfiles(raw),
     targetHourlyRate: num(raw.targetHourlyRate, base.targetHourlyRate),
+    // Anything that is not the string "annual" — including absent, which is
+    // every document written before this field existed — means hourly.
+    rateMode: raw.rateMode === "annual" ? "annual" : "hourly",
     eligibleLocations: strList(raw.eligibleLocations, base.eligibleLocations),
     anthropicApiKey: str(raw.anthropicApiKey),
   };
@@ -537,7 +545,12 @@ function parseDoc(json: string): ParseResult {
   if (version > SCHEMA_VERSION) {
     return {
       ok: false,
-      error: `This export came from a newer version of Bobi Pursuit (schema v${version}, this app understands v${SCHEMA_VERSION}). Update the app, then import it again.`,
+      // Reworded because this gate guards BOTH importJson and the localStorage
+      // read in runInit(). The old text ("import it again") only made sense on
+      // the import path; on the load path the reader is someone whose board
+      // just came up empty, and the two things they need to know immediately
+      // are that nothing was deleted and what to press.
+      error: `This pipeline was written by a newer version of Bobi Pursuit (schema v${version}, this copy understands v${SCHEMA_VERSION}). Nothing has been deleted — your data is set aside untouched. Hard-refresh this page to pick up the current version, then it will open normally.`,
     };
   }
 
@@ -1014,6 +1027,7 @@ export class PursuitStore {
       notes: str(input.notes),
       createdAt: str(input.createdAt) || ts,
       updatedAt: ts,
+      statusChangedAt: str(input.statusChangedAt) || ts,
     };
     return { ...base, score: input.score ?? this.scoreWith(base, settings) };
   }
@@ -1076,7 +1090,15 @@ export class PursuitStore {
       const index = doc.jobs.findIndex((job) => job.id === id);
       if (index < 0 || doc.jobs[index]!.pipelineStatus === status) return null;
       const jobs = [...doc.jobs];
-      jobs[index] = { ...jobs[index]!, pipelineStatus: status, updatedAt: ts };
+      // The ONLY place statusChangedAt moves. That is what makes it answer
+      // "how long has this been sitting here" when updatedAt cannot: updatedAt
+      // also moves on a note edit, so it measures attention, not waiting.
+      jobs[index] = {
+        ...jobs[index]!,
+        pipelineStatus: status,
+        updatedAt: ts,
+        statusChangedAt: ts,
+      };
       return { ...doc, jobs };
     });
   };

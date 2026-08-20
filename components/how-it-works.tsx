@@ -29,6 +29,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Button,
   ColorBadge,
+  MoreInfo,
   PanelCard,
   PanelHeader,
   SectionLabel,
@@ -215,15 +216,8 @@ export function CaptureRoutes({ compact = false }: { compact?: boolean }) {
           route at all — it documents the + Capture a job button that sits in the
           header on every tab regardless. Removing it from the page would not
           remove it from the app, it would just leave a button nothing explains. */}
-      <details className="group rounded-[10px] border border-border bg-card px-3.5 py-2.5">
-        <summary className="cursor-pointer list-none text-[13px] font-semibold text-muted-foreground transition-colors hover:text-foreground">
-          <span className="inline-block transition-transform group-open:rotate-90">
-            ›
-          </span>{" "}
-          Not on Chrome or Firefox? Two other ways in
-        </summary>
-
-        <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+      <MoreInfo label="Not on Chrome or Firefox? Two other ways in">
+        <div className="grid gap-2.5 sm:grid-cols-2">
           <PanelCard>
             <div className="mb-1.5 text-[14px] font-bold">Bookmarklet</div>
             <Prose>
@@ -256,7 +250,7 @@ export function CaptureRoutes({ compact = false }: { compact?: boolean }) {
             </Prose>
           </PanelCard>
         </div>
-      </details>
+      </MoreInfo>
     </div>
   );
 }
@@ -264,9 +258,15 @@ export function CaptureRoutes({ compact = false }: { compact?: boolean }) {
 function Faq({ q, children }: { q: string; children: ReactNode }) {
   return (
     <details className="group border-b border-border last:border-b-0">
+      {/* Same marker and rotation as `MoreInfo`, deliberately. Three different
+          disclosure glyphs had grown across the app for one interaction, which
+          the operator spotted as two boxes "trying to achieve the same thing"
+          that did not look alike. The row layout stays different because a list
+          of questions is not a standalone expander — it is the marker that has
+          to be common, not the container. */}
       <summary className="flex cursor-pointer list-none items-center gap-2 py-2.5 text-[14px] font-semibold text-foreground">
-        <span className="inline-block text-muted-foreground transition-transform group-open:rotate-90">
-          ›
+        <span className="inline-block text-[11px] text-muted-foreground transition-transform group-open:rotate-90">
+          ▶
         </span>
         {q}
       </summary>
@@ -323,9 +323,9 @@ function Body({ dense = false }: { dense?: boolean }) {
             hides the only interesting thing in the room.
           </Step>
           <Step n={4} title="You triage on the board">
-            Triage → Promoted → Applied, Ignored out of the way. Nothing moves on
-            its own: it cannot know you sent something, so it never claims you
-            did.
+            Triage → Promoted → Applied → Interviewing, with Declined and
+            Skipped out of the way. Nothing moves on its own: it cannot know you
+            sent something or that anyone replied, so it never claims you did.
           </Step>
         </div>
       </section>

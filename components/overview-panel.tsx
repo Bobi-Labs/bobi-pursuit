@@ -58,6 +58,9 @@ export function OverviewPanel({
   const triage = jobs.filter((job) => job.pipelineStatus === "triage");
   const promoted = jobs.filter((job) => job.pipelineStatus === "promoted");
   const applied = jobs.filter((job) => job.pipelineStatus === "applied");
+  const interviewing = jobs.filter(
+    (job) => job.pipelineStatus === "interviewing",
+  );
 
   const topToReview = [...triage]
     .sort((a, b) => (b.score?.fitScore ?? -1) - (a.score?.fitScore ?? -1))
@@ -83,7 +86,9 @@ export function OverviewPanel({
 
       <div
         data-tour="overview-counts"
-        className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4"
+        // Five across only from lg. Five cards on a tablet are narrower than
+        // their own labels, and three-then-two reads better than four-then-one.
+        className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5"
       >
         <KpiCard
           label="Captured"
@@ -115,9 +120,21 @@ export function OverviewPanel({
         <KpiCard
           label="Applied"
           value={String(applied.length)}
-          delta={applied.length ? "you sent these" : "you mark these yourself"}
+          delta={applied.length ? "sent, waiting" : "you mark these yourself"}
           deltaTone={applied.length ? "good" : "muted"}
           onClick={() => onGoPipeline("applied")}
+        />
+        {/* The count that makes the whole board feel like it is moving. Every
+            other number here is a backlog or a graveyard; this is the one that
+            means something came back. */}
+        <KpiCard
+          label="Interviewing"
+          value={String(interviewing.length)}
+          delta={
+            interviewing.length ? "they came back" : "nothing live yet"
+          }
+          deltaTone={interviewing.length ? "good" : "muted"}
+          onClick={() => onGoPipeline("interviewing")}
         />
       </div>
 

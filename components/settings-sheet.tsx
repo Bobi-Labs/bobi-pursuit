@@ -34,6 +34,7 @@ import {
   scoreJobsWithClaude,
   testApiKey,
 } from "@/lib/scoring/llm-scorer";
+import { FTE_HOURS_PER_YEAR } from "@/lib/scoring/rule-scorer";
 import { joinList, splitList } from "@/lib/profile-view";
 import {
   ensureFilePermission,
@@ -145,6 +146,12 @@ export function SettingsSheet({
 
   const keyRef = useRef<HTMLInputElement>(null);
   const keySet = settings.anthropicApiKey.trim() !== "";
+  const annualMode = settings.rateMode === "annual";
+  // Rounded to the nearest 1000 going out, so a 75/hr target reads as 156,000
+  // rather than 156,000.0000001 after a round trip through the divisor.
+  const displayRate = annualMode
+    ? Math.round((settings.targetHourlyRate * FTE_HOURS_PER_YEAR) / 1000) * 1000
+    : settings.targetHourlyRate;
 
   // Deliberately not a layout effect: the sheet animates in, and scrolling
   // before it has a height lands at the top of a box that is still growing.
@@ -472,26 +479,63 @@ export function SettingsSheet({
           </Field>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {/* Rate, in whichever unit the user thinks in.
+                A job seeker looking at salaried roles does not know their hourly
+                rate and should not have to divide by 2080 to use this field —
+                and the scorer never needed them to: it already compares annual
+                figures by converting the hourly target itself. So this is a
+                display unit, not a second stored number. The input is keyed on
+                the mode because it is uncontrolled: without the key, switching
+                units would leave the old figure sitting in the box. */}
             <Field
-              label="Target rate (USD/hr)"
+              label={annualMode ? "Target salary (USD/yr)" : "Target rate (USD/hr)"}
               hint="Budgets are judged against this, on every track."
             >
-              <input
-                className={cx(INPUT, "font-mono")}
-                defaultValue={String(settings.targetHourlyRate)}
-                inputMode="numeric"
-                onBlur={(e) => {
-                  const parsed = Number.parseFloat(e.target.value);
-                  if (!Number.isFinite(parsed) || parsed <= 0) {
-                    // Reject rather than store a zero — a target of 0 makes every
-                    // budget "fair" and quietly breaks the money signals.
-                    e.target.value = String(settings.targetHourlyRate);
-                    return;
-                  }
-                  store.updateSettings({ targetHourlyRate: Math.round(parsed) });
-                }}
-                placeholder="75"
-              />
+              <div className="flex gap-1.5">
+                <input
+                  key={settings.rateMode}
+                  className={cx(INPUT, "font-mono")}
+                  defaultValue={String(displayRate)}
+                  inputMode="numeric"
+                  onBlur={(e) => {
+                    const parsed = Number.parseFloat(
+                      e.target.value.replace(/[, ]/g, ""),
+                    );
+                    if (!Number.isFinite(parsed) || parsed <= 0) {
+                      // Reject rather than store a zero — a target of 0 makes
+                      // every budget "fair" and quietly breaks the money signals.
+                      e.target.value = String(displayRate);
+                      return;
+                    }
+                    store.updateSettings({
+                      targetHourlyRate: Math.max(
+                        1,
+                        Math.round(
+                          annualMode ? parsed / FTE_HOURS_PER_YEAR : parsed,
+                        ),
+                      ),
+                    });
+                  }}
+                  placeholder={annualMode ? "156000" : "75"}
+                />
+                <div className="flex shrink-0 overflow-hidden rounded-md border border-border">
+                  {(["hourly", "annual"] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => store.updateSettings({ rateMode: mode })}
+                      className={cx(
+                        "px-2.5 py-2 text-[12px] font-semibold transition-colors",
+                        settings.rateMode === mode
+                          ? "bg-primary/15 text-primary"
+                          : "bg-card text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {mode === "hourly" ? "/hr" : "/yr"}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </Field>
             <Field
               label="Eligible locations"

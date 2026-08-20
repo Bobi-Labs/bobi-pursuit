@@ -85,7 +85,10 @@ const THIN_POST_CHARS = 200;
 
 // Full-time-equivalent hours, used to convert an annual figure to an hourly
 // one. 2080 is the conservative (highest) divisor.
-const FTE_HOURS_PER_YEAR = 2080;
+// Exported so the settings UI converts with the SAME number the scorer judges
+// against. A second copy in a component is how a field starts disagreeing with
+// the thing it configures.
+export const FTE_HOURS_PER_YEAR = 2080;
 
 /**
  * The weights, in one place, so they can be argued with.

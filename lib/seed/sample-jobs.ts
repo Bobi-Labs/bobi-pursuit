@@ -32,11 +32,19 @@ function ago(daysAgo: number, hoursAgo = 0): string {
 }
 
 /**
- * Ten illustrative jobs, newest first. Stable ids (`sample-01` …) so
+ * Twelve illustrative jobs, newest first. Stable ids (`sample-01` …) so
  * loading the sample twice updates rather than duplicates.
+ *
+ * `statusChangedAt` is derived here rather than written into every literal: for
+ * a sample, "when this last moved" is the same as "when this was last touched",
+ * and one `.map` cannot drift out of step the way twelve hand-typed timestamps
+ * eventually would.
  */
 export function sampleJobs(): Job[] {
-  return [
+  return SAMPLES.map((job) => ({ ...job, statusChangedAt: job.updatedAt }));
+}
+
+const SAMPLES: Omit<Job, "statusChangedAt">[] = [
     {
       id: "sample-01",
       title: "Next.js + Supabase contractor — internal ops dashboard",
@@ -343,5 +351,44 @@ To apply, send your CV and salary expectations. Please note we are unable to spo
       updatedAt: ago(8, 1),
       score: null,
     },
+    {
+      id: "sample-11",
+      title: "Senior Product Engineer — internal tools",
+      company: "Northwind Freight",
+      description: `We are a logistics company with a small in-house product team and a lot of internal software that our operations staff use every day. We are hiring a senior engineer to own that surface end to end.
+
+You would work directly with the ops managers who use these tools, ship weekly, and have real say in what gets built. Our stack is TypeScript, React and Postgres, and we are pragmatic about it.
+
+What we care about: you have owned something in production, you can talk to non-engineers without condescension, and you would rather delete a feature than maintain a bad one.
+
+Remote within EU timezones. We do one week together in Rotterdam twice a year.`,
+      url: "https://boards.example.com/northwind-freight/senior-product-engineer",
+      source: "weworkremotely.com",
+      location: "Remote (EU)",
+      budgetHint: "€75k-€95k/yr",
+      pipelineStatus: "interviewing",
+      notes: "First call went well — they walked through the ops dashboard and it is genuinely the work I want. Second round is a systems conversation, no take-home. Ask about who owns the roadmap.",
+      createdAt: ago(24, 5),
+      updatedAt: ago(3, 2),
+      score: null,
+    },
+    {
+      id: "sample-12",
+      title: "Full-stack Engineer (React / Node)",
+      company: "Kestrel Analytics",
+      description: `Kestrel builds reporting software for mid-market finance teams. We are looking for a full-stack engineer to join a team of six.
+
+You will work across our React front end and Node services, own features from spec to production, and take part in a light on-call rotation.
+
+We offer a competitive salary, private healthcare, and a genuine four-day-week pilot starting next quarter.`,
+      url: "https://boards.example.com/kestrel-analytics/full-stack-engineer",
+      source: "linkedin.com",
+      location: "Remote (UK)",
+      budgetHint: "£60k-£70k/yr",
+      pipelineStatus: "declined",
+      notes: "Rejected after the take-home. Feedback was that they wanted someone stronger on data modelling — fair, the schema question caught me out. Worth re-applying if they post a more front-end-weighted role.",
+      createdAt: ago(31, 3),
+      updatedAt: ago(11, 4),
+      score: null,
+    },
   ];
-}

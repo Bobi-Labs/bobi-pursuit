@@ -48,7 +48,7 @@ in the loop for everything that matters.
 **Triage board.** Promote what is worth an afternoon, skip the rest. Nothing
 moves on its own.
 
-<img src="./docs/03-pipeline.png" alt="Kanban pipeline with Triage, Promoted and Applied columns, each card showing its fit score, track and budget." width="100%">
+<img src="./docs/03-pipeline.png" alt="Kanban pipeline with Triage, Promoted, Applied and Interviewing columns, each card showing its fit score, track and budget." width="100%">
 
 **One job, in full.** The score, which track earned it, the flags that moved it,
 and the posting itself.

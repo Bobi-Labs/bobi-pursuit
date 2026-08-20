@@ -70,12 +70,46 @@ const ACTIONS: Record<PipelineStatus, Action[]> = {
       title: "Changed your mind — move to Ignored",
     },
   ],
+  // Applied stops being terminal. Its forward move is the one thing you cannot
+  // do yourself — hear back — so both outcomes live here. "↩ Undo" moved into
+  // Job Studio's Move-to row rather than disappearing: two outcomes and an undo
+  // is three buttons on a card that already carries a budget and an age.
   applied: [
     {
-      to: "promoted",
-      label: "↩ Undo",
+      to: "interviewing",
+      label: "⚡ Interviewing",
+      variant: "primary",
+      title: "They came back — move to Interviewing",
+    },
+    {
+      to: "declined",
+      label: "Declined",
       variant: "default",
-      title: "Not actually sent — move back to Promoted",
+      title: "They said no — move to Declined",
+    },
+  ],
+  interviewing: [
+    {
+      to: "declined",
+      label: "Declined",
+      variant: "default",
+      title: "It ended — move to Declined",
+    },
+    {
+      to: "applied",
+      label: "↩ Back",
+      variant: "default",
+      title: "Mis-tapped — move back to Applied",
+    },
+  ],
+  // Reopening goes to Applied, not Triage: you did send it, and pretending
+  // otherwise would lose that from the archive.
+  declined: [
+    {
+      to: "applied",
+      label: "↺ Reopen",
+      variant: "default",
+      title: "Back in play — move to Applied",
     },
   ],
   ignored: [
@@ -87,6 +121,18 @@ const ACTIONS: Record<PipelineStatus, Action[]> = {
     },
   ],
 };
+
+/**
+ * How loud the waiting figure is. Three weeks is the threshold because that is
+ * roughly when a silent application stops being "early" and starts being an
+ * answer — but it is a colour, not a decision: nothing moves off the board on
+ * its own, ever.
+ */
+function waitingTone(since: string): string {
+  const days = (Date.now() - new Date(since).getTime()) / 86_400_000;
+  if (!Number.isFinite(days)) return "";
+  return days >= 21 ? "text-amber-400" : "";
+}
 
 export function JobCard({
   job,
@@ -152,6 +198,23 @@ export function JobCard({
       <div className="mt-2 flex items-center justify-between gap-2">
         <span className="min-w-0 truncate font-mono text-[12px] text-muted-foreground">
           {job.budgetHint || "no budget"} · {relAge(job.createdAt)}
+          {/* Silence is the usual outcome of an application, and an Applied
+              column with no clock becomes twenty identical cards you cannot
+              rank. This reads from statusChangedAt, NOT updatedAt: updatedAt
+              moves when you type a note, so it would reset to zero on the job
+              you are chasing hardest — exactly backwards.
+
+              Applied only. On Interviewing something is already happening, and
+              on the closed piles the wait is over. It moves nothing and
+              archives nothing; the click stays yours. */}
+          {job.pipelineStatus === "applied" ? (
+            <>
+              {" · "}
+              <span className={waitingTone(job.statusChangedAt)}>
+                waiting {relAge(job.statusChangedAt)}
+              </span>
+            </>
+          ) : null}
         </span>
         <span
           className="flex shrink-0 items-center gap-1"

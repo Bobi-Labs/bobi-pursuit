@@ -41,6 +41,14 @@
       .result .sub { color: var(--muted); font-size: 11.5px; margin-top: 5px; }
       .pill { display: inline-block; font: 700 11px/1 ui-monospace, monospace; padding: 4px 7px; border-radius: 999px; }
       .ok { color: var(--green); } .warn { color: var(--amber); } .err { color: var(--red); }
+      /* Handing off is not succeeding.
+         Green means done, and the eye reads the colour long before the words —
+         so a green card at the moment of capture said "saved" no matter what
+         the sentence underneath it claimed. Local-mode capture opens a form and
+         saves nothing, so it gets its own tone: the accent colour, a left rule,
+         and no tick. It reads as "next step", which is what it is. */
+      .todo { color: var(--fg); }
+      .result.todo { border-left: 3px solid var(--primary); background: var(--elevated, var(--card)); }
 
       /* cockpit */
       .counts { display: flex; gap: 6px; margin-bottom: 12px; }
@@ -134,7 +142,11 @@
           </div>
         </div>
       </main>
-      <footer>Click-to-capture only · scored against your ICP on save</footer>
+      <!-- The version, because three separate reports today turned out to be
+           version confusion rather than bugs: a cached bundle, a stale CDN read,
+           and an extension that had not auto-updated. A build that cannot say
+           which build it is makes every screenshot ambiguous. -->
+      <footer>Click-to-capture only · <span id="ver"></span></footer>
     </div>
     <script src="sidepanel.js"></script>
   </body>

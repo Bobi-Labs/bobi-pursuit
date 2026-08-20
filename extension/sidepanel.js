@@ -25,6 +25,7 @@ const PROFILE_TAG = {
 
 const els = {};
 [
+  "ver",
   "signin", "signinBtn", "recheckBtn", "capture", "tabTitle", "tabUrl",
   "captureBtn", "saveSearchBtn", "result", "gear", "counts", "cTriage", "cPromoted",
   "cDrafted", "dupe", "queue", "queueList",
@@ -165,6 +166,14 @@ async function renderAuthState() {
     refreshTab();
     loadSummary();
   }
+}
+
+/* Read from the manifest rather than a constant, so the number shown can
+ * never disagree with the package it shipped in. */
+try {
+  els.ver.textContent = "v" + chrome.runtime.getManifest().version;
+} catch {
+  // Non-fatal: a missing version line beats a broken panel.
 }
 
 els.saveSearchBtn.addEventListener("click", saveSearch);
@@ -522,10 +531,11 @@ async function saveSearch() {
     await chrome.tabs.create({ url: `${cfg.instanceUrl}/?${q.toString()}` });
     renderFor(
       // Same correction as capture: the handoff opens a form, it does not save.
-      '<div class="big ok">Opened in Bobi-Pursuit</div>' +
-        '<div class="sub">Not saved yet — name it and press <b>Save</b> on the Searches tab.</div>',
-      "ok",
-      7000,
+      '<div class="big todo">One step left</div>' +
+        '<div class="sub">Opened in the new tab. Name it and press <b>Save</b> ' +
+        "on the Searches tab.</div>",
+      "todo",
+      9000,
     );
   } catch (e) {
     render(
@@ -590,10 +600,11 @@ async function capture() {
        * What was wrong was the sentence claiming the guess had already been
        * accepted. */
       renderFor(
-        '<div class="big ok">Opened in Bobi-Pursuit</div>' +
-          '<div class="sub">Not saved yet — press <b>Save &amp; score</b> in the new tab to add it.</div>',
-        "ok",
-        7000,
+        '<div class="big todo">One step left</div>' +
+          '<div class="sub">Opened in the new tab. It is <b>not saved</b> until you ' +
+          "press <b>Save &amp; score</b> there.</div>",
+        "todo",
+        9000,
       );
       return;
     }

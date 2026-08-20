@@ -25,7 +25,7 @@ const PROFILE_TAG = {
 
 const els = {};
 [
-  "ver",
+  "ver", "openBtn",
   "signin", "signinBtn", "recheckBtn", "capture", "tabTitle", "tabUrl",
   "captureBtn", "saveSearchBtn", "result", "gear", "counts", "cTriage", "cPromoted",
   "cDrafted", "dupe", "queue", "queueList",
@@ -177,6 +177,15 @@ try {
 }
 
 els.saveSearchBtn.addEventListener("click", saveSearch);
+/* Straight to the app, capturing nothing.
+ *
+ * Worth its own button once tabs are reused: the panel is now the thing you
+ * keep open while job hunting, and "take me to my board" was only reachable by
+ * capturing something you did not want. Goes through openInPursuit too, so it
+ * raises the existing tab rather than adding to the pile. */
+els.openBtn.addEventListener("click", () => {
+  void openInPursuit(cfg.instanceUrl);
+});
 els.signinBtn.addEventListener("click", () => {
   // /login is a server-mode page; the free app has nothing to sign into.
   if (isLocalMode()) return;
@@ -515,6 +524,71 @@ function toSignin() {
  * readable form — "product manager remote jobs in London" — and the user can
  * rename it in the app. Better a decent guess they edit than an empty box.
  */
+/**
+ * Open a Bobi-Pursuit URL, reusing the tab if one is already there.
+ *
+ * Capturing ten jobs used to open ten tabs. Each handoff called
+ * `chrome.tabs.create` unconditionally, which is right exactly once — the first
+ * time, when nothing is open — and wrong every time after, and a job hunt is
+ * nothing but times after.
+ *
+ * **On reusing a tab with an unsaved form in it.** The one thing this can
+ * destroy is a capture you opened and then abandoned without pressing Save &
+ * score. That is the correct thing to lose: you are, at that moment, deliberately
+ * capturing something else, and the app now states plainly that nothing is saved
+ * until you press the button. Silently keeping the abandoned one and opening
+ * an eleventh tab would be the worse trade.
+ *
+ * The tab is focused rather than updated in the background, and that is not a
+ * detail. The handoff is not finished — there is a form waiting for a keypress
+ * — so putting it behind the window you are reading would recreate the exact
+ * problem the "One step left" card exists to prevent.
+ */
+async function openInPursuit(url) {
+  /* Compare parsed ORIGINS, not string prefixes.
+   *
+   * `url.startsWith(instanceUrl)` looks equivalent and is not: it also matches
+   * `pursuit.bobilabs.dev.example.com`, so a page someone else controls could
+   * absorb the handoff while the real app never opens. Cheap to get right, and
+   * the wrong version fails in a way nobody would think to test for.
+   *
+   * The path is deliberately ignored — the app is one tab that may be sitting
+   * on any of its routes. */
+  let origin = null;
+  try {
+    origin = new URL(cfg.instanceUrl).origin;
+  } catch {
+    // A malformed instance URL means no reuse, not a broken capture.
+  }
+  try {
+    const tabs = origin ? await chrome.tabs.query({}) : [];
+    const existing = tabs.find((t) => {
+      if (!t.url) return false;
+      try {
+        return new URL(t.url).origin === origin;
+      } catch {
+        return false;
+      }
+    });
+    if (existing && existing.id != null) {
+      await chrome.tabs.update(existing.id, { url, active: true });
+      // A tab in another window is focused but invisible until the window is.
+      if (existing.windowId != null) {
+        try {
+          await chrome.windows.update(existing.windowId, { focused: true });
+        } catch {
+          // Firefox can refuse this without a user gesture. The tab is still
+          // the active one in its window, so the handoff is not lost.
+        }
+      }
+      return;
+    }
+  } catch {
+    // A query failure must not cost the capture — fall through and open one.
+  }
+  await chrome.tabs.create({ url });
+}
+
 async function saveSearch() {
   els.saveSearchBtn.disabled = true;
   try {
@@ -528,12 +602,12 @@ async function saveSearch() {
       t: (tab.title || "").slice(0, 120),
       s: hostOf(tab.url),
     });
-    await chrome.tabs.create({ url: `${cfg.instanceUrl}/?${q.toString()}` });
+    await openInPursuit(`${cfg.instanceUrl}/?${q.toString()}`);
     renderFor(
       // Same correction as capture: the handoff opens a form, it does not save.
       '<div class="big todo">One step left</div>' +
-        '<div class="sub">Opened in the new tab. Name it and press <b>Save</b> ' +
-        "on the Searches tab.</div>",
+        '<div class="sub">Opened in your Bobi-Pursuit tab. Name it and press ' +
+        "<b>Save</b> on the Searches tab.</div>",
       "todo",
       9000,
     );
@@ -582,7 +656,7 @@ async function capture() {
         b: job.budgetHint || "",
         s: hostOf(job.url),
       });
-      await chrome.tabs.create({ url: `${cfg.instanceUrl}/?${q.toString()}` });
+      await openInPursuit(`${cfg.instanceUrl}/?${q.toString()}`);
       // Brief, then gone. In local mode the capture finishes in a NEW TAB that
       // is now in front of the user, so this panel's confirmation is telling
       // them something they can already see — and it used to sit there
@@ -601,8 +675,8 @@ async function capture() {
        * accepted. */
       renderFor(
         '<div class="big todo">One step left</div>' +
-          '<div class="sub">Opened in the new tab. It is <b>not saved</b> until you ' +
-          "press <b>Save &amp; score</b> there.</div>",
+          '<div class="sub">Opened in your Bobi-Pursuit tab. It is <b>not saved</b> ' +
+          "until you press <b>Save &amp; score</b> there.</div>",
         "todo",
         9000,
       );

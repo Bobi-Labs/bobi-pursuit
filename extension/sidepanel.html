@@ -32,6 +32,8 @@
       .tab-url { color: var(--muted); font-size: 11px; margin-top: 4px; word-break: break-all; }
       button.primary { width: 100%; padding: 11px; border-radius: 9px; border: 0; background: var(--primary); color: #06101f; font-weight: 800; font-size: 13px; cursor: pointer; }
       button.primary:disabled { opacity: 0.5; cursor: default; }
+      .ghost-row { display: flex; gap: 6px; }
+      .ghost-row button.ghost { flex: 1; min-width: 0; }
       button.ghost { width: 100%; margin-top: 8px; padding: 9px; border-radius: 9px; background: transparent; color: var(--muted); border: 1px solid var(--border); font-size: 12px; cursor: pointer; }
       button.ghost:hover { color: var(--fg); }
       .hint { color: var(--muted); font-size: 11px; margin-top: 8px; }
@@ -132,7 +134,13 @@
                search is the work — the salary floor, the radius, the date
                filter — and it is what people lose. Ghost styling because
                capture is still the common case. -->
-          <button class="ghost" id="saveSearchBtn">🔖 Save this search</button>
+          <!-- Side by side rather than stacked: three full-width buttons in a
+               narrow sidebar reads as a menu, and only the first is the common
+               case. These two are the occasional ones. -->
+          <div class="ghost-row">
+            <button class="ghost" id="saveSearchBtn">🔖 Save search</button>
+            <button class="ghost" id="openBtn">↗ Open Pursuit</button>
+          </div>
           <div class="hint">Tip: select the job description text first for the cleanest capture.</div>
           <div class="result" id="result"></div>
 

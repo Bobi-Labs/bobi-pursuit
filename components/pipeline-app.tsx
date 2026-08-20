@@ -49,11 +49,7 @@ import { STARTER_PROFILE_ID, type Job, type PipelineStatus, type Profile } from 
 
 import { AddJobSheet, type AddResult, type NewJobInput } from "./add-job-sheet";
 import { clearHired, readHired, writeHired, type HiredRecord } from "@/lib/hired";
-import {
-  DesktopGate,
-  readMobileBypass,
-  writeMobileBypass,
-} from "./desktop-gate";
+import { DesktopGate } from "./desktop-gate";
 import { Directory, type DirectoryEntry } from "./directory";
 import { SearchesPanel } from "./searches-panel";
 import { isSafeUrl, parkPendingSearch } from "@/lib/saved-searches";
@@ -396,13 +392,6 @@ export default function PipelineApp({
   const [howOpen, setHowOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
 
-  /* Someone who chose to use a phone anyway, on a previous visit.
-     Starts false so the prerendered HTML is the gate — the honest default —
-     and only a stored preference or a click turns it off. */
-  const [bypassed, setBypassed] = useState(false);
-  useEffect(() => {
-    if (readMobileBypass()) setBypassed(true);
-  }, []);
   const [tourOpen, setTourOpen] = useSessionState("tourOpen");
   const [tourStep, setTourStep] = useSessionState("tourStep");
   /* Tier 2, one job at a time. The id (not a boolean) so switching jobs mid-call
@@ -698,22 +687,20 @@ export default function PipelineApp({
        * the thing it is about to take away.
        *
        * `md:hidden` / `hidden md:block` means the server-rendered HTML is
-       * already correct at every width, with no hydration mismatch and no
-       * flash. `bypassed` is the only JS in it, and only after a click.
+       * already correct at every width, with no hydration mismatch, no flash,
+       * and no JavaScript involved in the decision at all.
        *
-       * The app still MOUNTS underneath — hidden, not unmounted — so pressing
-       * "Continue anyway" is instant and the board is exactly as it was. See
-       * desktop-gate.tsx for why the gate positions itself `fixed`. */}
-      <div className={bypassed ? "hidden" : "md:hidden"}>
-        <DesktopGate
-          onContinue={() => {
-            writeMobileBypass();
-            setBypassed(true);
-          }}
-        />
+       * The app still MOUNTS underneath, hidden rather than unmounted, which
+       * is a consequence of doing this in CSS: React cannot unmount a subtree
+       * on a media query without measuring, and measuring is what causes the
+       * flash. Harmless — the hidden tree writes nothing until a user acts, and
+       * the gate positions itself `fixed` so the hidden tour's body scroll lock
+       * cannot freeze it. See desktop-gate.tsx. */}
+      <div className="md:hidden">
+        <DesktopGate />
       </div>
 
-      <div className={bypassed ? undefined : "hidden md:block"}>
+      <div className="hidden md:block">
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
       {/* ═══ banner ═══ */}
       <header className="relative overflow-hidden border-b border-border px-4 pb-4 pt-5 sm:px-6">

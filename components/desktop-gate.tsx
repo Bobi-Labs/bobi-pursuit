@@ -27,38 +27,31 @@
  * in the same plain words as the welcome popup, and gives them a way to carry
  * the link to a real machine. It is a redirect, not a door slam.
  *
- * ⚠️ **The escape hatch is not optional.** Somebody may already have a board in
- * this browser — the app was reachable on phones for months — and a hard block
- * would lock them out of their own data with no way to export it. "Continue
- * anyway" exists for them, and it persists, because a gate that reappears on
- * every tab click is a gate they cannot get past.
+ * ⚠️ **There is no "continue anyway", and that was a deliberate reversal.**
+ * This screen shipped with one, on the reasoning that somebody might already
+ * have a board in this browser and a hard block would strand their data. The
+ * operator overruled it on two grounds, both stronger:
+ *
+ *  1. The product launched days ago and nobody has a board on a phone. The
+ *     population the escape hatch protected is empty.
+ *  2. A door that opens onto a bad experience is worse than no door. People
+ *     take it, see a screen we have already admitted does not work, and judge
+ *     the product by that — so the escape hatch does not rescue the visit, it
+ *     converts a clean "come back on a laptop" into a bounce.
+ *
+ * Desktop or not at all. If a mobile app is ever worth building, it gets built.
+ *
+ * The data is not destroyed by this, only unreachable through the UI: it is
+ * still in that browser's local storage under `pursuit.doc`. If somebody ever
+ * does turn up stranded, the recovery is to read that key out of devtools, not
+ * to put this button back.
  */
 
 import { useState } from "react";
 
 import { Button } from "./ui";
 
-/** Its own key, deliberately outside `pursuit.doc` — a device preference is not document data. */
-const BYPASS_KEY = "pursuit.mobileBypass";
-
-export function readMobileBypass(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    return window.localStorage.getItem(BYPASS_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-export function writeMobileBypass(): void {
-  try {
-    window.localStorage.setItem(BYPASS_KEY, "1");
-  } catch {
-    // Private mode. The bypass just will not stick; nothing else breaks.
-  }
-}
-
-export function DesktopGate({ onContinue }: { onContinue: () => void }) {
+export function DesktopGate() {
   const [copied, setCopied] = useState(false);
 
   async function copyLink() {
@@ -118,16 +111,13 @@ export function DesktopGate({ onContinue }: { onContinue: () => void }) {
           </div>
         </div>
 
-        {/* Quiet, and quiet on purpose — see the file header. This is the door
-            for somebody who already has a board in this browser, not an
-            invitation to use a screen we have just said does not work. */}
-        <button
-          type="button"
-          onClick={onContinue}
-          className="mt-6 text-[13px] text-muted-foreground underline underline-offset-2 transition-colors hover:text-foreground"
-        >
-          Continue anyway — I know it will be cramped
-        </button>
+        {/* Where the "continue anyway" link used to be. See the file header —
+            it is gone on purpose, and a future session should read that note
+            before adding one back. */}
+        <p className="mt-6 text-[13px] leading-relaxed text-text-muted">
+          Nothing to install and no sign-up — the whole thing runs in a desktop
+          browser.
+        </p>
       </div>
     </div>
   );

@@ -451,23 +451,17 @@ function StepCapture() {
         </div>
       </div>
 
-      {/* "No scrapers" is the line a reader assumes is a paywall, so the
-          technical reason has to be reachable — but it is a wall of words on a
-          screen someone is trying to get past, so it is one line with the
-          detail behind a disclosure. */}
-      <HintCard title="Not a paywall">
-        Nothing here scrapes job boards, and that is a browser limit rather than
-        a locked feature.
-        <div className="mt-2">
-          <MoreInfo label="Why not?">
-            A page running in your browser cannot fetch a job board&apos;s HTML —
-            the browser blocks it cross-origin — and the boards block datacenter
-            IPs, so scraping needs a server this app deliberately does not have.
-            Capture is the honest version: nothing reads a page until you click.
-          </MoreInfo>
-        </div>
-      </HintCard>
-
+      {/* The "Not a paywall" explanation used to sit here, and it is gone
+          rather than shortened.
+          It was answering an objection nobody has yet. On step two of setup the
+          reader has not looked for a scraper, not failed to find one, and not
+          concluded they were being upsold — they are trying to get a job onto a
+          board. Defending against a complaint before it exists spends the
+          scarcest attention in the product on the app's anxiety rather than the
+          user's task, and it stacked a second disclosure directly above the one
+          in CaptureRoutes, which is what made the pair look mismatched.
+          The full argument still lives in How it works, under "What it does not
+          do", where somebody asking the question will actually be. */}
       <CaptureRoutes />
     </div>
   );

@@ -536,16 +536,28 @@ export function KanbanCol({
   label,
   count,
   hint,
+  emptyGets,
+  emptyThen,
+  anchor,
   children,
 }: {
   label: string;
   count: number;
-  /** Shown in place of the em-dash when the column is empty. */
+  /** One line, shown under the placeholder title when the column is empty. */
   hint?: string;
+  /** What puts a card in this column. */
+  emptyGets?: string;
+  /** What moves it out again. */
+  emptyThen?: string;
+  /** `data-tour` value, so the first-run tour can ring this column. */
+  anchor?: string;
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-h-[480px] flex-col rounded-[10px] border border-border bg-muted/30">
+    <div
+      data-tour={anchor}
+      className="flex min-h-[480px] flex-col rounded-[10px] border border-border bg-muted/30"
+    >
       <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
         <span className="text-[14px] font-bold">{label}</span>
         <span className="rounded-full border border-border bg-card px-1.5 py-0.5 font-mono text-[12px] font-semibold text-muted-foreground">
@@ -554,8 +566,46 @@ export function KanbanCol({
       </div>
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-2.5">
         {count === 0 ? (
-          <div className="py-6 text-center text-[14px] text-muted-foreground">
-            {hint ?? "—"}
+          /* A card-shaped placeholder rather than a line of grey text.
+           *
+           * The operator's instinct was to seed a real "Sample" card in every
+           * column and ask people to delete them. Same goal, and the goal is
+           * right — an empty board teaches nothing, and four unexplained
+           * columns is the moment a new user decides this is not for them.
+           * But seeded cards are real rows: they score, they count in every
+           * KPI, and they make the first thing you do in the product a
+           * cleanup, which teaches "this arrives full of junk".
+           *
+           * This is the same lesson with none of that. It looks like a card,
+           * says what the column is FOR, what puts something here and what
+           * moves it on — and it is not data, so it cannot be scored, counted,
+           * exported or deleted. It disappears the moment a real card lands,
+           * which is exactly when the explanation stops being needed. */
+          <div className="rounded-lg border border-dashed border-border/80 bg-card/40 p-3">
+            <div className="text-[13px] font-semibold text-muted-foreground">
+              {label} is empty
+            </div>
+            {hint ? (
+              <div className="mt-1 text-[14px] leading-snug text-text-muted">
+                {hint}
+              </div>
+            ) : null}
+            {emptyGets ? (
+              <div className="mt-2 flex gap-1.5 text-[14px] leading-snug text-text-muted">
+                <span aria-hidden className="shrink-0 font-bold text-emerald-400">
+                  →
+                </span>
+                {emptyGets}
+              </div>
+            ) : null}
+            {emptyThen ? (
+              <div className="mt-1 flex gap-1.5 text-[14px] leading-snug text-text-muted">
+                <span aria-hidden className="shrink-0 font-bold text-sky-400">
+                  ↦
+                </span>
+                {emptyThen}
+              </div>
+            ) : null}
           </div>
         ) : (
           children

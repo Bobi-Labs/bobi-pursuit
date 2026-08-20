@@ -63,3 +63,25 @@ export const CHROME_EXTENSION_URL =
 /** Firefox Add-ons listing. */
 export const FIREFOX_EXTENSION_URL =
   "https://addons.mozilla.org/en-US/firefox/addon/bobi-pursuit-capture/";
+
+/* ── Who made this ─────────────────────────────────────────────────────────
+ *
+ * A local-first app with no account and no server has no other way to say who
+ * built it, and a stranger who likes the tool has nowhere to go. These are the
+ * only outbound links in the product that are not about the user's own job
+ * hunt, which is why they sit together and quietly, under the board rather
+ * than over it.
+ *
+ * A fork should change or empty these. Each is checked before it renders, so
+ * setting one to null removes it rather than shipping a dead control.
+ */
+
+/** Link tree — everything Bobi Labs does, including hiring us. */
+export const STUDIO_LINKS_URL: string | null = "https://bobilabs.dev/links";
+
+/** The studio's own site. */
+export const STUDIO_URL: string | null = "https://bobilabs.dev";
+
+/** Company page. */
+export const STUDIO_LINKEDIN_URL: string | null =
+  "https://www.linkedin.com/company/bobi-labs";

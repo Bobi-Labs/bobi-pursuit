@@ -119,7 +119,14 @@ const fitTone = (n) => (n == null ? "" : n >= 70 ? "ok" : n >= 40 ? "warn" : "er
  */
 let resultForUrl = null;
 
+/** Pending auto-clear for a transient confirmation. Declared here rather than
+ * beside renderFor because clearResult is defined far above it, and a `let`
+ * used before its declaration is evaluated is a ReferenceError waiting for the
+ * first caller that is not async. */
+let resultTimer = 0;
+
 function clearResult() {
+  clearTimeout(resultTimer);
   resultForUrl = null;
   els.result.className = "result";
   els.result.innerHTML = "";
@@ -341,6 +348,90 @@ function extractJob() {
 
   const title = clip(titleFromDom() || meta("og:title") || document.title, 300);
 
+  /* Company and pay.
+   *
+   * The app has accepted `c` and `b` capture params, and shown company and
+   * budget fields on its add form, since the beginning — this extractor simply
+   * never filled them, so every capture arrived with two blanks the user then
+   * typed by hand off the page they were already looking at.
+   *
+   * Read from schema.org JobPosting first. Most boards emit it as JSON-LD for
+   * Google for Jobs, which makes it the one structured, non-scraped description
+   * of the posting sitting right there in the page the user opened. Falls back
+   * to og:site_name and the hostname, which are worse but never wrong enough to
+   * matter — the user reviews everything on the add form before saving. */
+  const jobPosting = (() => {
+    for (const node of document.querySelectorAll('script[type="application/ld+json"]')) {
+      let data;
+      try {
+        data = JSON.parse(node.textContent || "");
+      } catch {
+        continue; // one malformed block must not cost the rest of the page
+      }
+      // @graph, bare arrays and single objects all occur in the wild.
+      const items = Array.isArray(data) ? data : data && data["@graph"] ? data["@graph"] : [data];
+      for (const item of items) {
+        if (item && item["@type"] === "JobPosting") return item;
+      }
+    }
+    return null;
+  })();
+
+  const orgName = (org) => {
+    if (!org) return "";
+    if (typeof org === "string") return org;
+    if (Array.isArray(org)) return orgName(org[0]);
+    return org.name || "";
+  };
+
+  const company = clip(
+    orgName(jobPosting && jobPosting.hiringOrganization) ||
+      document.querySelector(".job-details-jobs-unified-top-card__company-name")?.innerText ||
+      document.querySelector('[data-test="employer-name"]')?.innerText ||
+      meta("og:site_name") ||
+      location.hostname.replace(/^www\./, ""),
+    120,
+  );
+
+  /* Pay, as a human-readable hint rather than a parsed number.
+   * The app's field is called budgetHint and its scorer reads prose, so
+   * "$120,000 - $150,000 per year" is more useful to it than a float would be —
+   * and a currency the app guessed wrong is worse than a string it can read. */
+  const budgetHint = (() => {
+    const salary = jobPosting && jobPosting.baseSalary;
+    const value = salary && (salary.value || salary);
+    if (!value) return "";
+    const unit = String(value.unitText || "").toLowerCase();
+    const period =
+      unit === "year" ? "/yr" : unit === "month" ? "/mo" :
+      unit === "week" ? "/wk" : unit === "day" ? "/day" :
+      unit === "hour" ? "/hr" : "";
+    const cur = (salary.currency || value.currency || "").toString().toUpperCase();
+    /* Zero means UNDISCLOSED, not free.
+     *
+     * Boards emit `minValue: 0, maxValue: 0` constantly for postings with no
+     * published band — WeWorkRemotely does it on most listings, and the first
+     * real page this was tested against produced "USD 0-0/yr". That is worse
+     * than an empty field in both directions: the user sees a number that is
+     * not true, and the rule scorer reads budgetHint as prose, so a
+     * disclosed-looking zero would drag the money signals down on a job whose
+     * pay is simply unknown. */
+    const pos = (n) => {
+      const v = Number(n);
+      return Number.isFinite(v) && v > 0 ? v : null;
+    };
+    const fmt = (v) => String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    const loN = pos(value.minValue);
+    const hiN = pos(value.maxValue);
+    const oneN = pos(value.value);
+    if (loN === null && hiN === null && oneN === null) return "";
+    const range =
+      loN !== null && hiN !== null && hiN !== loN
+        ? fmt(loN) + "-" + fmt(hiN)
+        : fmt(oneN !== null ? oneN : loN !== null ? loN : hiN);
+    return clip(`${cur ? cur + " " : ""}${range}${period}`, 80);
+  })();
+
   const selection = String(window.getSelection ? window.getSelection() : "");
   let body = selection;
   let via = "selection";
@@ -365,6 +456,8 @@ function extractJob() {
 
   return {
     title,
+    company,
+    budgetHint,
     url: location.href,
     description: clip(body, 11000),
     usedSelection: via === "selection",
@@ -375,6 +468,18 @@ function extractJob() {
 function render(html, cls) {
   els.result.className = "result show " + (cls || "");
   els.result.innerHTML = html;
+}
+
+/**
+ * A result that clears itself.
+ *
+ * Only for confirmations. Errors stay until something replaces them — a message
+ * telling you what went wrong must not vanish while you are reading it.
+ */
+function renderFor(html, cls, ms) {
+  clearTimeout(resultTimer);
+  render(html, cls);
+  resultTimer = window.setTimeout(clearResult, ms);
 }
 function toSignin() {
   // There is no sign-in on the free app, so never strand a local-mode user on
@@ -406,18 +511,28 @@ async function capture() {
     // the app prefills its add form and the user confirms there. Same params
     // the bookmarklet uses, so both routes stay in sync.
     if (isLocalMode()) {
+      // `c` and `b` have been in the app's CAPTURE_PARAMS all along; this is
+      // the first build that actually sends them.
       const q = new URLSearchParams({
         add: "1",
         t: job.title || "",
         u: job.url || "",
         d: job.description || "",
+        c: job.company || "",
+        b: job.budgetHint || "",
         s: hostOf(job.url),
       });
       await chrome.tabs.create({ url: `${cfg.instanceUrl}/?${q.toString()}` });
-      render(
+      // Brief, then gone. In local mode the capture finishes in a NEW TAB that
+      // is now in front of the user, so this panel's confirmation is telling
+      // them something they can already see — and it used to sit there
+      // indefinitely, still claiming a send while they browsed on. Long enough
+      // to catch if the tab opened behind; short enough never to become a lie.
+      renderFor(
         '<div class="big ok">Sent to Bobi-Pursuit</div>' +
           '<div class="sub">Opened the add form pre-filled — review it there and save.</div>',
         "ok",
+        5000,
       );
       return;
     }

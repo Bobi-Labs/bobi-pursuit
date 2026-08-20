@@ -46,7 +46,9 @@ import {
   findPreset,
   isColorTone,
   isPipelineStatus,
+  isWorkArrangement,
   nextTone,
+  WORK_ARRANGEMENTS,
   type ColorTone,
   type Job,
   type JobScore,
@@ -267,6 +269,7 @@ function settingsAffectScoring(
   return (
     a.targetHourlyRate !== b.targetHourlyRate ||
     !sameList(a.eligibleLocations, b.eligibleLocations) ||
+    !sameList(a.workArrangements, b.workArrangements) ||
     profilesAffectScoring(a.profiles, b.profiles)
   );
 }
@@ -516,6 +519,14 @@ function repairSettings(raw: unknown): PursuitSettings {
     // Anything that is not the string "annual" — including absent, which is
     // every document written before this field existed — means hourly.
     rateMode: raw.rateMode === "annual" ? "annual" : "hourly",
+    // Absent in every document written before this field existed, and the
+    // fallback is all three — "no opinion", which scores identically to how
+    // those boards scored yesterday.
+    workArrangements: (() => {
+      const raw2 = raw.workArrangements;
+      const picked = Array.isArray(raw2) ? raw2.filter(isWorkArrangement) : [];
+      return picked.length > 0 ? picked : [...WORK_ARRANGEMENTS];
+    })(),
     eligibleLocations: strList(raw.eligibleLocations, base.eligibleLocations),
     anthropicApiKey: str(raw.anthropicApiKey),
   };
@@ -710,8 +721,38 @@ export class PursuitStore {
     return this.initPromise;
   };
 
+  /**
+   * Ask the browser to stop treating this data as disposable.
+   *
+   * localStorage is not a cache and is not routinely evicted — but "not
+   * routinely" is doing real work in that sentence. Under storage pressure a
+   * browser will clear "best-effort" origins without asking, and that is the
+   * default bucket every site starts in. `persist()` moves this origin to the
+   * "persistent" bucket, which is exempt.
+   *
+   * Chrome and Firefox grant it silently to sites the user has engaged with
+   * (bookmarked, installed, visited repeatedly) and decline otherwise; neither
+   * shows a prompt, so calling it costs the user nothing either way. Safari
+   * does not implement it, and Safari is also where the sharpest risk lives —
+   * seven days without a visit and script-writable storage is deleted outright.
+   * Nothing a page can call changes that, which is exactly why an export is
+   * still the only real backup.
+   *
+   * Deliberately fire-and-forget: a refusal is normal and must never delay or
+   * fail startup.
+   */
+  private requestPersistence(): void {
+    try {
+      void navigator.storage?.persist?.().catch(() => {});
+    } catch {
+      // Old browsers have no navigator.storage at all. Nothing to do.
+    }
+  }
+
   private async runInit(): Promise<void> {
     let unavailable: string | null = null;
+
+    this.requestPersistence();
 
     if (!this.primary) {
       const local = new LocalStorageAdapter();

@@ -48,6 +48,8 @@ import {
   MAX_PROFILES,
   MIN_PROFILES,
   PROFILE_PRESETS,
+  WORK_ARRANGEMENTS,
+  WORK_ARRANGEMENT_LABEL,
   isColorTone,
   type Profile,
 } from "@/lib/types";
@@ -58,6 +60,7 @@ import {
   Field,
   HintCard,
   INPUT,
+  MoreInfo,
   SectionLabel,
   Sheet,
   cx,
@@ -537,20 +540,74 @@ export function SettingsSheet({
                 </div>
               </div>
             </Field>
+            {/* Two questions, and the old single free-text box asked them as
+                one. "Remote" is HOW the work is done; "EU" is WHERE you are
+                allowed to do it, and a posting can fail either independently —
+                a remote job that requires US residency is remote and still
+                impossible. The box defaulted to the word "remote", which is why
+                it read as an arrangement picker while scoring as geography.
+
+                Arrangement leads because it is the one nearly everybody has an
+                opinion about. Regions go behind a disclosure: real, still
+                scored, and irrelevant to most people until it is not. */}
             <Field
-              label="Eligible locations"
-              hint="A required location outside these caps a job at 25, whatever else it scores."
+              label="Work arrangement"
+              hint="Uncheck anything you would not take. All three checked means no opinion, and nothing is filtered."
             >
-              <input
-                className={INPUT}
-                defaultValue={joinList(settings.eligibleLocations)}
-                onBlur={(e) =>
-                  store.updateSettings({
-                    eligibleLocations: splitList(e.target.value),
-                  })
-                }
-                placeholder="remote, eu, uk, us"
-              />
+              <div className="flex flex-wrap gap-1.5">
+                {WORK_ARRANGEMENTS.map((mode) => {
+                  const on = settings.workArrangements.includes(mode);
+                  return (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => {
+                        const next = on
+                          ? settings.workArrangements.filter((m) => m !== mode)
+                          : [...settings.workArrangements, mode];
+                        // Never let the last one go: an empty list would mean
+                        // "nothing is acceptable", which caps every job on the
+                        // board at 25. Unchecking the last box is far more
+                        // likely to be a mis-click than a decision.
+                        if (next.length === 0) return;
+                        store.updateSettings({ workArrangements: next });
+                      }}
+                      aria-pressed={on}
+                      className={cx(
+                        "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-2 text-[13px] font-semibold transition-colors",
+                        on
+                          ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                          : "border-border bg-card text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      <span className="font-mono text-[11px]">
+                        {on ? "✓" : "·"}
+                      </span>
+                      {WORK_ARRANGEMENT_LABEL[mode]}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-2">
+                <MoreInfo label="Restrict to certain regions?">
+                  <div className="mb-2">
+                    Separate from the buttons above: this is where you are
+                    eligible to work, not how. A posting that states a required
+                    location outside these is capped at 25, whatever else it
+                    scores. Leave it as it is if that is not your problem.
+                  </div>
+                  <input
+                    className={INPUT}
+                    defaultValue={joinList(settings.eligibleLocations)}
+                    onBlur={(e) =>
+                      store.updateSettings({
+                        eligibleLocations: splitList(e.target.value),
+                      })
+                    }
+                    placeholder="remote, eu, uk, us"
+                  />
+                </MoreInfo>
+              </div>
             </Field>
           </div>
         </section>

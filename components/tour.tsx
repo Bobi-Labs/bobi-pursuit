@@ -7,11 +7,15 @@
  * after the wizard, for the person now looking at a dashboard with four tabs on
  * it and no idea which one is the point.
  *
- * **Five stops, and the shape is deliberate:** one on how jobs get in, then one
- * per tab saying what that area is for and how to use it. The version before
- * this had seven, and all seven were read from the same box in the middle of the
- * same unchanging page — which is a slideshow with a Next button, not a tour.
- * Two things changed:
+ * **Nine stops, and the shape is deliberate:** one on how jobs get in, one per
+ * tab, and three on the board itself. An earlier version had seven read from the
+ * same box in the middle of the same unchanging page — a slideshow with a Next
+ * button, not a tour. A later one had five and named each tab without ever
+ * teaching the board, which the operator caught: it stopped on Pipeline and then
+ * never explained how to use it. The three board stops each ring one column and
+ * name the single action that moves a card out of it.
+ *
+ * Two things make that work:
  *
  *  - **Each stop names the tab it is about** (`TourStop.tab`) and the shell
  *    navigates there before you read the card. The effect that consumes this
@@ -214,8 +218,53 @@ export const TOUR_STOPS: readonly TourStop[] = [
     title: "Decide once, not four times",
     body: (
       <>
-        Promote, apply, then mark what comes back. Declined and Skipped are
-        kept, not deleted.
+        Four columns, left to right. Declined and Skipped sit behind their own
+        tabs — kept, not deleted.
+      </>
+    ),
+  },
+  /* Three stops on the board itself, one per decision you actually make.
+   *
+   * Naming the tab was never teaching it. Each of these rings the column it
+   * describes, so the words and the thing are on screen together — and each
+   * names the ONE action that moves a card out, because that is the only
+   * question a new user has while looking at it. */
+  {
+    key: "triage",
+    label: "Triage",
+    tab: "pipeline",
+    anchor: "col-triage",
+    title: "Decide, don’t read",
+    body: (
+      <>
+        Everything captured lands here, already scored. Promote what is worth an
+        afternoon, Skip the rest — fast.
+      </>
+    ),
+  },
+  {
+    key: "applied",
+    label: "Applied",
+    tab: "pipeline",
+    anchor: "col-applied",
+    title: "Then it is their move",
+    body: (
+      <>
+        Mark applied once you have actually sent it. These cards show how long
+        they have been waiting, because silence is the usual answer.
+      </>
+    ),
+  },
+  {
+    key: "interviewing",
+    label: "Interviewing",
+    tab: "pipeline",
+    anchor: "col-interviewing",
+    title: "When someone comes back",
+    body: (
+      <>
+        Mark the response on the card. Nothing moves on its own — this app
+        cannot read your email, so it never pretends to know.
       </>
     ),
   },
@@ -233,6 +282,20 @@ export const TOUR_STOPS: readonly TourStop[] = [
     ),
   },
   {
+    key: "jobsites",
+    label: "Job Sites",
+    tab: "jobsites",
+    anchor: "tab-jobsites",
+    title: "Nothing to triage yet?",
+    body: (
+      <>
+        Seventy-six job sites with honest notes on each, and Resources next door
+        for CVs, interviews and pay. Both work before you have captured
+        anything.
+      </>
+    ),
+  },
+  {
     key: "howitworks",
     label: "How it works",
     tab: "howitworks",
@@ -240,8 +303,9 @@ export const TOUR_STOPS: readonly TourStop[] = [
     title: "The manual, and one warning",
     body: (
       <>
-        Every capture route lives here. Your data never leaves this browser, so{" "}
-        <Strong>Export</Strong> in Settings is your only backup.
+        Every capture route lives here. Your data stays in this browser — no
+        server holds a copy, so <Strong>Export</Strong> in Settings is what
+        makes it survive a lost laptop.
       </>
     ),
   },

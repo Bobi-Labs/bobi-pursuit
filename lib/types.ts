@@ -793,6 +793,24 @@ export interface Job {
  * the v2 model. A "stack" is only meaningful if everyone using this app is
  * hunting the same kind of job, and they are not.
  */
+/** How the work is done, as opposed to where you are allowed to do it. */
+export type WorkArrangement = "remote" | "hybrid" | "onsite";
+
+export const WORK_ARRANGEMENTS: WorkArrangement[] = ["remote", "hybrid", "onsite"];
+
+export const WORK_ARRANGEMENT_LABEL: Record<WorkArrangement, string> = {
+  remote: "Remote",
+  hybrid: "Hybrid",
+  onsite: "On-site",
+};
+
+export function isWorkArrangement(value: unknown): value is WorkArrangement {
+  return (
+    typeof value === "string" &&
+    (WORK_ARRANGEMENTS as string[]).includes(value)
+  );
+}
+
 export interface PursuitSettings {
   profileName: string;
   bio: string;
@@ -808,6 +826,16 @@ export interface PursuitSettings {
    * user last picked would have meant every consumer of this field asking
    * "which unit is this?" and one of them eventually forgetting.
    */
+  /**
+   * Which shapes of work you would actually take.
+   *
+   * A different axis from `eligibleLocations`, which is geography — "remote"
+   * and "EU" answer different questions, and the old single free-text box
+   * conflated them. Defaults to all three, which means "no opinion" and scores
+   * exactly as the app did before this existed. It only starts filtering once
+   * you uncheck something.
+   */
+  workArrangements: WorkArrangement[];
   targetHourlyRate: number;
   /**
    * Which unit the rate field *displays*. Presentation only; nothing scores off
@@ -913,6 +941,9 @@ export function defaultSettings(): PursuitSettings {
     ],
     targetHourlyRate: 75,
     rateMode: "hourly",
+    // All three: no opinion, and therefore no cap. Anything narrower would
+    // change how every existing board scores the moment this shipped.
+    workArrangements: [...WORK_ARRANGEMENTS],
     eligibleLocations: ["remote"],
     anthropicApiKey: "",
   };

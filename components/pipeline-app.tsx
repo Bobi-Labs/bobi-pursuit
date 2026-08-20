@@ -48,14 +48,33 @@ import { usePipeline, useStoreStatus } from "@/lib/store/use-pipeline";
 import { STARTER_PROFILE_ID, type Job, type PipelineStatus, type Profile } from "@/lib/types";
 
 import { AddJobSheet, type AddResult, type NewJobInput } from "./add-job-sheet";
+import { Directory, type DirectoryEntry } from "./directory";
 import { HowItWorksPanel, HowItWorksSheet } from "./how-it-works";
+import {
+  ALERT_LABEL,
+  JOB_SITES,
+  JOB_SITE_CATEGORIES,
+  JOB_SITE_CATEGORY_LABEL,
+} from "@/lib/job-sites";
+import {
+  COST_LABEL,
+  RESOURCES,
+  RESOURCE_CATEGORIES,
+  RESOURCE_CATEGORY_LABEL,
+} from "@/lib/resources";
 import { JobCard } from "./job-card";
 import { JobStudioPanel } from "./job-detail";
 import { Onboarding } from "./onboarding";
 import { OverviewPanel } from "./overview-panel";
 import { SettingsSheet } from "./settings-sheet";
 import { TOUR_STOPS, Tour, resetTourSeen, shouldShowTour } from "./tour";
-import { FEEDBACK_URL } from "@/lib/app-config";
+import {
+  FEEDBACK_URL,
+  REPO_URL,
+  STUDIO_LINKEDIN_URL,
+  STUDIO_LINKS_URL,
+  STUDIO_URL,
+} from "@/lib/app-config";
 import {
   Button,
   Chip,
@@ -75,7 +94,13 @@ import {
   type FolderTab,
 } from "./ui";
 
-export type TabKey = "overview" | "pipeline" | "studio" | "howitworks";
+export type TabKey =
+  | "overview"
+  | "pipeline"
+  | "studio"
+  | "jobsites"
+  | "resources"
+  | "howitworks";
 type View = "kanban" | "table";
 type SortKey = "fit" | "newest";
 /**
@@ -84,10 +109,19 @@ type SortKey = "fit" | "newest";
  */
 type BoardSub = "working" | "declined" | "ignored";
 
+/* Six tabs, and the order is the argument.
+ *
+ * The three on the left are your own data, in the order you touch it. The two
+ * in the middle are where work comes FROM — they are the only part of this app
+ * that is useful on day one with an empty board, which is exactly when a job
+ * seeker has nothing to triage and no reason to come back. "How it works" stays
+ * last because it is read once. */
 const TABS: FolderTab<TabKey>[] = [
   { key: "overview", label: "Overview" },
   { key: "pipeline", label: "Pipeline" },
   { key: "studio", label: "Job Studio" },
+  { key: "jobsites", label: "Job Sites" },
+  { key: "resources", label: "Resources" },
   { key: "howitworks", label: "How it works" },
 ];
 
@@ -104,6 +138,8 @@ const TAB_PATH: Record<TabKey, string> = {
   overview: "/",
   pipeline: "/pipeline/",
   studio: "/jobstudio/",
+  jobsites: "/jobsites/",
+  resources: "/resources/",
   howitworks: "/howitworks/",
 };
 
@@ -207,11 +243,42 @@ function useSessionState<K extends keyof ViewSession>(
  * had nothing to say about it, because an array is allowed to be short. Deriving
  * the set from the columns makes the two agree by construction.
  */
-const COLUMNS: { status: PipelineStatus; label: string; hint: string }[] = [
-  { status: "triage", label: "Triage", hint: "Everything new. Decide, don’t read." },
-  { status: "promoted", label: "Promoted", hint: "Worth an afternoon." },
-  { status: "applied", label: "Applied", hint: "Sent. Waiting." },
-  { status: "interviewing", label: "Interviewing", hint: "They came back." },
+const COLUMNS: {
+  status: PipelineStatus;
+  label: string;
+  hint: string;
+  /** What puts a card here, and what moves it on. Shown only when empty. */
+  gets: string;
+  then: string;
+}[] = [
+  {
+    status: "triage",
+    label: "Triage",
+    hint: "Everything new, undecided. Decide, don’t read.",
+    gets: "Anything you capture lands here, already scored.",
+    then: "Promote what is worth an afternoon, Skip the rest.",
+  },
+  {
+    status: "promoted",
+    label: "Promoted",
+    hint: "The shortlist — worth an afternoon.",
+    gets: "Promote a card from Triage.",
+    then: "Apply in your own time, then Mark applied.",
+  },
+  {
+    status: "applied",
+    label: "Applied",
+    hint: "Sent. Now it is their move.",
+    gets: "Mark applied once you have actually sent it.",
+    then: "Cards here show how long they have been waiting.",
+  },
+  {
+    status: "interviewing",
+    label: "Interviewing",
+    hint: "Something is live.",
+    gets: "Mark a company response on an applied card.",
+    then: "Nothing moves on its own — this app cannot read your email.",
+  },
 ];
 
 /** Exactly the statuses with a column. Anything else is a closed pile. */
@@ -614,6 +681,70 @@ export default function PipelineApp({
         </div>
       </header>
 
+      {/* ═══ who made this ═══
+          Placed between the banner and the tabs, in the empty run of space the
+          operator pointed at, and deliberately quiet: small type, muted colour,
+          no button styling. It is the only outbound set in the app that is not
+          about the reader's own job hunt, and a job seeker opening this at
+          11pm should not be sold to. Each link is null-checked so a fork can
+          empty them rather than ship dead controls. */}
+      {(STUDIO_LINKS_URL || REPO_URL || STUDIO_LINKEDIN_URL) && (
+        <div className="border-b border-border px-4 py-2 sm:px-6">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12px] text-text-muted">
+            {STUDIO_LINKS_URL && (
+              <>
+                <span>Want something custom built?</span>
+                <a
+                  href={STUDIO_LINKS_URL}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="inline-flex items-center rounded-md border border-primary/40 bg-primary/10 px-2 py-0.5 font-semibold text-primary transition-colors hover:bg-primary/20"
+                >
+                  Work with us ↗
+                </a>
+              </>
+            )}
+
+            <span className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              {STUDIO_URL && (
+                <a
+                  href={STUDIO_URL}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="transition-colors hover:text-foreground"
+                >
+                  Powered by Bobi Labs
+                </a>
+              )}
+              {REPO_URL && (
+                <a
+                  href={REPO_URL}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  title="Source on GitHub — this app is MIT licensed"
+                  className="inline-flex items-center gap-1 transition-colors hover:text-foreground"
+                >
+                  <GitHubMark />
+                  GitHub
+                </a>
+              )}
+              {STUDIO_LINKEDIN_URL && (
+                <a
+                  href={STUDIO_LINKEDIN_URL}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  title="Bobi Labs on LinkedIn"
+                  className="inline-flex items-center gap-1 transition-colors hover:text-foreground"
+                >
+                  <LinkedInMark />
+                  LinkedIn
+                </a>
+              )}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* ═══ folder tabs + panel ═══ */}
       <div className="flex-1 px-4 pb-12 pt-3 sm:px-6">
         <FolderTabs
@@ -623,7 +754,31 @@ export default function PipelineApp({
           onChange={goTab}
         />
         <FolderPanel className="min-h-[680px]">
-          {tab === "howitworks" ? (
+          {tab === "jobsites" ? (
+            // Ahead of the `loaded` gate for the same reason as How it works:
+            // these read no document state, so waiting on storage would be a
+            // spinner for nothing. It also means the two tabs that work on an
+            // empty board render instantly on a cold visit.
+            <Directory
+              title="Job Sites"
+              sub="Where the postings are. Nothing here is fetched or scraped — open one, find something, and capture it with the extension. Strengths and weaknesses are both stated, because a directory that only praises is an advert."
+              entries={JOB_SITE_ENTRIES}
+              categories={JOB_SITE_CATEGORIES}
+              categoryLabel={JOB_SITE_CATEGORY_LABEL}
+              storageKey="pursuit.fav.jobsites"
+              searchPlaceholder="Search sites, or try “RSS”, “ghost jobs”…"
+            />
+          ) : tab === "resources" ? (
+            <Directory
+              title="Resources"
+              sub="Everything a job hunt needs that is not a job: CV help, cover letters, interview practice, pay research and your rights. Cost is stated up front, because the usual way these lists waste your time is a paywall you meet an hour in."
+              entries={RESOURCE_ENTRIES}
+              categories={RESOURCE_CATEGORIES}
+              categoryLabel={RESOURCE_CATEGORY_LABEL}
+              storageKey="pursuit.fav.resources"
+              searchPlaceholder="Search resources, or try “free”, “UK”…"
+            />
+          ) : tab === "howitworks" ? (
             // Ahead of the `loaded` gate on purpose: this tab reads no document
             // state, and the skeleton exists to stop an empty board flashing in
             // front of someone who has two hundred jobs. There is no board here
@@ -920,15 +1075,19 @@ function PipelinePanel({
           <span className="w-6 font-mono text-[12px] text-foreground">{minFit}</span>
         </label>
 
+        <span className="hidden h-4 w-px bg-border sm:block" />
+
+        {/* Sort sat behind `ml-auto`, alone at the far right of the row while
+            every other control was grouped left. The operator did not find it
+            for weeks — a control pushed away from its peers reads as decoration,
+            not as something you can press. It sits with the filters now. */}
+        <ViewToggle value={sort} options={SORTS} onChange={onSort} />
+
         {filtersActive ? (
           <Button size="xs" variant="ghost" onClick={onClearFilters}>
             clear
           </Button>
         ) : null}
-
-        <span className="ml-auto">
-          <ViewToggle value={sort} options={SORTS} onChange={onSort} />
-        </span>
       </div>
 
       {sub === "working" ? (
@@ -959,6 +1118,9 @@ function PipelinePanel({
                 label={column.label}
                 count={grouped[column.status].length}
                 hint={column.hint}
+                emptyGets={column.gets}
+                emptyThen={column.then}
+                anchor={`col-${column.status}`}
               >
                 {grouped[column.status].map(renderCard)}
               </KanbanCol>
@@ -983,10 +1145,66 @@ function PipelinePanel({
   );
 }
 
+/* Both directories, mapped to the component's shape once at module level.
+ *
+ * Deliberately not inside the render: these lists are static, and rebuilding
+ * 105 objects on every keystroke in the search box would be work done for
+ * nothing. The badge is the field each list actually wants surfaced — whether a
+ * job site can alert you, and what a resource costs. */
+const JOB_SITE_ENTRIES: DirectoryEntry[] = JOB_SITES.map((site) => ({
+  ...site,
+  badge: ALERT_LABEL[site.alerts],
+  badgeTone:
+    site.alerts === "both" ? "green" : site.alerts === "none" ? "muted" : "blue",
+}));
+
+const RESOURCE_ENTRIES: DirectoryEntry[] = RESOURCES.map((resource) => ({
+  ...resource,
+  badge: COST_LABEL[resource.cost],
+  badgeTone:
+    resource.cost === "free"
+      ? "green"
+      : resource.cost === "freemium"
+        ? "amber"
+        : "muted",
+}));
+
 const VIEWS = ["kanban", "table"] as const;
 const SORTS = ["fit", "newest"] as const;
 
 /* ───────────────────────────── sub-surfaces ───────────────────────────── */
+
+/* Inline SVG rather than an icon package or a remote image.
+ *
+ * The app ships as a static export with a strict CSP and no external requests,
+ * so a CDN icon would simply not load; and pulling a whole icon library in for
+ * two glyphs would cost more bytes than the rest of this component. Both are
+ * `currentColor` so they inherit the link's hover state for free. */
+function GitHubMark() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 16 16"
+      className="h-3.5 w-3.5 fill-current"
+      focusable="false"
+    >
+      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
+    </svg>
+  );
+}
+
+function LinkedInMark() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 16 16"
+      className="h-3.5 w-3.5 fill-current"
+      focusable="false"
+    >
+      <path d="M3.6 5.5H.9V15h2.7V5.5ZM2.25 1a1.56 1.56 0 1 0 0 3.12 1.56 1.56 0 0 0 0-3.12ZM15.1 9.7c0-2.6-1.39-3.81-3.24-3.81-1.5 0-2.17.82-2.54 1.4V5.5H6.62c.04.76 0 9.5 0 9.5h2.7V9.69c0-.24.02-.48.09-.65.19-.48.63-.98 1.36-.98.96 0 1.35.73 1.35 1.8V15h2.7V9.7Z" />
+    </svg>
+  );
+}
 
 function Skeleton() {
   return (

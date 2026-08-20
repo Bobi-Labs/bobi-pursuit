@@ -226,6 +226,7 @@ function descriptionTokens(profile: Profile): string[] {
 
 export interface ScoreCaps {
   geoIneligible: boolean;
+  arrangementIneligible: boolean;
   lowballAnnual: boolean;
   hasBudgetSignal: boolean;
   /** The posting itself is framed as salaried. Exempts it from the budget cap. */
@@ -243,6 +244,7 @@ export function extractScoreCaps(
 function capsOf(s: Signals): ScoreCaps {
   return {
     geoIneligible: s.geoIneligible,
+    arrangementIneligible: s.arrangementIneligible,
     lowballAnnual: s.lowballAnnual,
     hasBudgetSignal: s.hasBudgetSignal,
     fteFramed: s.fteFraming,
@@ -263,6 +265,13 @@ export function applyCaps(
     capNotes.push("capped at 25: required location is outside your eligible regions");
   }
   // Track-independent: an annual figure implying single-digit hourly is below
+  // Same shape as the geographic cap, and equally track-independent: the way
+  // the work is done does not change per track.
+  if (s.arrangementIneligible && out > 25) {
+    out = 25;
+    capNotes.push("capped at 25: the posting's work arrangement is one you excluded");
+  }
+
   // any track's floor.
   if (s.lowballAnnual && out > 25) {
     out = 25;
@@ -679,6 +688,8 @@ interface Signals {
   stale: boolean;
   geoIneligible: boolean;
   lowballAnnual: boolean;
+  /** The posting's work arrangement is one the user excluded. */
+  arrangementIneligible: boolean;
 }
 
 function extractSignals(job: JobInput, settings: PursuitSettings): Signals {
@@ -760,7 +771,58 @@ function extractSignals(job: JobInput, settings: PursuitSettings): Signals {
       settings.eligibleLocations,
     ),
     lowballAnnual: detectLowballAnnualSalary(moneyText, target),
+    arrangementIneligible: isArrangementIneligible(
+      hay,
+      job.location ?? "",
+      settings.workArrangements,
+    ),
   };
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ * Work arrangement
+ *
+ * Separate from geographic eligibility because they answer different questions:
+ * "remote" is how the work is done, "EU" is where you may do it, and a posting
+ * can fail either independently.
+ *
+ * Reads the prose rather than trusting a structured field. A board's own
+ * "remote" flag is wrong often enough to be useless on its own — the classic
+ * case is a listing tagged remote whose description says "hybrid schedule,
+ * three days in the office, we prefer candidates near the city".
+ * ────────────────────────────────────────────────────────────────── */
+
+const HYBRID_RE =
+  /\bhybrid\b|\bin[-\s]office\b|\d\s*days?\s*(?:per|a)\s*week\s*in|\bdays?\s*in\s*(?:the\s*)?office\b/i;
+const ONSITE_RE =
+  /\bon[-\s]?site\b|\bonsite\b|\bin[-\s]person\b|\brelocat/i;
+const REMOTE_RE = /\bremote\b|\bwork from home\b|\bwfh\b|\bdistributed team\b/i;
+
+function isArrangementIneligible(
+  hay: string,
+  location: string,
+  allowed: string[],
+): boolean {
+  // Empty means the setting was never chosen; treat as no opinion.
+  if (!allowed || allowed.length === 0) return false;
+  // All three selected is also no opinion, and skipping the regexes is free.
+  if (allowed.length >= 3) return false;
+
+  const text = `${location} \n ${hay}`;
+
+  // Order matters: a hybrid posting nearly always also says "remote" somewhere
+  // ("3 days remote"), so hybrid has to be decided before remote is believed.
+  const looksHybrid = HYBRID_RE.test(text);
+  const looksOnsite = !looksHybrid && ONSITE_RE.test(text);
+  const looksRemote = !looksHybrid && !looksOnsite && REMOTE_RE.test(text);
+
+  if (looksHybrid) return !allowed.includes("hybrid");
+  if (looksOnsite) return !allowed.includes("onsite");
+  if (looksRemote) return !allowed.includes("remote");
+
+  // Says nothing either way. Never cap on silence — an unstated arrangement is
+  // unknown, not disqualifying.
+  return false;
 }
 
 /* ──────────────────────────────────────────────────────────────────

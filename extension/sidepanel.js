@@ -521,10 +521,11 @@ async function saveSearch() {
     });
     await chrome.tabs.create({ url: `${cfg.instanceUrl}/?${q.toString()}` });
     renderFor(
-      '<div class="big ok">Search sent to Bobi-Pursuit</div>' +
-        '<div class="sub">Name it there and it lands on your Searches tab.</div>',
+      // Same correction as capture: the handoff opens a form, it does not save.
+      '<div class="big ok">Opened in Bobi-Pursuit</div>' +
+        '<div class="sub">Not saved yet — name it and press <b>Save</b> on the Searches tab.</div>',
       "ok",
-      5000,
+      7000,
     );
   } catch (e) {
     render(
@@ -577,11 +578,22 @@ async function capture() {
       // them something they can already see — and it used to sit there
       // indefinitely, still claiming a send while they browsed on. Long enough
       // to catch if the tab opened behind; short enough never to become a lie.
+      /* "Sent to Bobi-Pursuit" was a lie, and a specific one: in local mode
+       * nothing is saved here at all. The extension opens the app's add form
+       * with the fields filled in, and the job only exists once the user
+       * presses Save & score in that tab. The operator hit it immediately —
+       * capture, read "Sent", close the tab, and the job was never on the
+       * board.
+       *
+       * The review step itself is right and stays: extraction guesses, and a
+       * mangled description saved silently is worse than one you glanced at.
+       * What was wrong was the sentence claiming the guess had already been
+       * accepted. */
       renderFor(
-        '<div class="big ok">Sent to Bobi-Pursuit</div>' +
-          '<div class="sub">Opened the add form pre-filled — review it there and save.</div>',
+        '<div class="big ok">Opened in Bobi-Pursuit</div>' +
+          '<div class="sub">Not saved yet — press <b>Save &amp; score</b> in the new tab to add it.</div>',
         "ok",
-        5000,
+        7000,
       );
       return;
     }

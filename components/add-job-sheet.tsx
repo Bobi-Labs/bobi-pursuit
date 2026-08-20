@@ -103,7 +103,11 @@ export function AddJobSheet({
       title={prefill ? "Capture this job" : "Add a job"}
       subtitle={
         prefill
-          ? `Captured from ${prefill.source}. Check it over, then save — it is scored on the way in.`
+          ? // Blunt on purpose: arriving from the plugin the form looks finished,
+            // and the operator closed the tab believing the job was already on
+            // the board. "Then save" was too soft for a step that is the whole
+            // difference between a captured job and a lost one.
+            `From ${prefill.source} — nothing is saved yet. Check it over, then press Save & score.`
           : "Paste a posting. It gets scored against your tracks the moment you save it."
       }
       onClose={onClose}
@@ -138,6 +142,10 @@ export function AddJobSheet({
               <Button size="md" onClick={onClose}>
                 Cancel
               </Button>
+              {/* Named as the thing that finishes the job, because arriving
+                  from the plugin this is the step people miss: the form is
+                  full, it looks done, and closing the tab loses it. The
+                  plugin's own message now says to press this by name. */}
               <Button
                 size="md"
                 variant="primary"

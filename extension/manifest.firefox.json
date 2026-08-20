@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Bobi-Pursuit — Capture",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Capture the job you are viewing into your Bobi-Pursuit board, scored on the spot. One click. No background crawling, no account.",
   "homepage_url": "https://pursuit.bobilabs.dev",
   "browser_specific_settings": {

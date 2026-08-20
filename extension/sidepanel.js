@@ -26,7 +26,7 @@ const PROFILE_TAG = {
 const els = {};
 [
   "signin", "signinBtn", "recheckBtn", "capture", "tabTitle", "tabUrl",
-  "captureBtn", "result", "gear", "counts", "cTriage", "cPromoted",
+  "captureBtn", "saveSearchBtn", "result", "gear", "counts", "cTriage", "cPromoted",
   "cDrafted", "dupe", "queue", "queueList",
 ].forEach((id) => (els[id] = document.getElementById(id)));
 
@@ -141,6 +141,10 @@ async function refreshTab() {
   const ok = capturable(tab.url);
   els.captureBtn.disabled = !ok;
   els.captureBtn.textContent = ok ? "⬆ Capture this job" : "Can't capture this page";
+  // Deliberately NOT gated on `ok`. A search results page is precisely what
+  // capture refuses and what is most worth saving.
+  const savable = /^https?:/i.test(tab.url || "");
+  els.saveSearchBtn.disabled = !savable;
 }
 
 async function renderAuthState() {
@@ -163,6 +167,7 @@ async function renderAuthState() {
   }
 }
 
+els.saveSearchBtn.addEventListener("click", saveSearch);
 els.signinBtn.addEventListener("click", () => {
   // /login is a server-mode page; the free app has nothing to sign into.
   if (isLocalMode()) return;
@@ -487,6 +492,50 @@ function toSignin() {
   if (isLocalMode()) return;
   els.capture.style.display = "none";
   els.signin.style.display = "block";
+}
+
+/**
+ * Hand the CURRENT page's address to the app as a saved search.
+ *
+ * Same mechanism as capture and for the same reason: the extension and the app
+ * are different origins, so the extension cannot write to the app's storage. It
+ * opens a URL the app knows how to read. No API, no account, nothing posted
+ * anywhere.
+ *
+ * The label is seeded from the page title because that is usually the query in
+ * readable form — "product manager remote jobs in London" — and the user can
+ * rename it in the app. Better a decent guess they edit than an empty box.
+ */
+async function saveSearch() {
+  els.saveSearchBtn.disabled = true;
+  try {
+    const tab = await activeTab();
+    if (!tab || !tab.url || !/^https?:/i.test(tab.url)) {
+      throw new Error("This page can't be saved.");
+    }
+    const q = new URLSearchParams({
+      savesearch: "1",
+      u: tab.url,
+      t: (tab.title || "").slice(0, 120),
+      s: hostOf(tab.url),
+    });
+    await chrome.tabs.create({ url: `${cfg.instanceUrl}/?${q.toString()}` });
+    renderFor(
+      '<div class="big ok">Search sent to Bobi-Pursuit</div>' +
+        '<div class="sub">Name it there and it lands on your Searches tab.</div>',
+      "ok",
+      5000,
+    );
+  } catch (e) {
+    render(
+      '<div class="big warn">Could not save</div><div class="sub">' +
+        (e && e.message ? e.message : "Unknown error") +
+        "</div>",
+      "warn",
+    );
+  } finally {
+    els.saveSearchBtn.disabled = false;
+  }
 }
 
 async function capture() {

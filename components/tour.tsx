@@ -7,7 +7,7 @@
  * after the wizard, for the person now looking at a dashboard with four tabs on
  * it and no idea which one is the point.
  *
- * **Nine stops, and the shape is deliberate:** one on how jobs get in, one per
+ * **Eleven stops, and the shape is deliberate:** one on how jobs get in, one per
  * tab, and three on the board itself. An earlier version had seven read from the
  * same box in the middle of the same unchanging page — a slideshow with a Next
  * button, not a tour. A later one had five and named each tab without ever
@@ -90,7 +90,7 @@ import {
 // Type-only, and it has to stay that way: `pipeline-app` imports this module for
 // real, so a value import here would close the cycle at runtime.
 import type { TabKey } from "./pipeline-app";
-import { Button, cx } from "./ui";
+import { Button, Steps, cx } from "./ui";
 
 /** One flag, one key. Namespaced so it never collides with `pursuit.doc`. */
 export const TOUR_SEEN_KEY = "bp.tourSeen";
@@ -292,6 +292,47 @@ export const TOUR_STOPS: readonly TourStop[] = [
         Seventy-six job sites with honest notes on each, and Resources next door
         for CVs, interviews and pay. Both work before you have captured
         anything.
+      </>
+    ),
+  },
+  {
+    key: "searches",
+    label: "Searches",
+    tab: "searches",
+    anchor: "tab-searches",
+    title: "Keep the search, not just the job",
+    body: (
+      <>
+        A tuned search — your salary floor, your radius, sorted by newest — is
+        the work. Save it from the plugin and it lands here.
+      </>
+    ),
+  },
+  /* The plugin gets the last word, and it is the only stop describing something
+   * that is not on screen — which is the point. Everything the tour has shown
+   * so far assumes a job is already on the board, and this is the thing that
+   * puts it there. Drawn as the same Steps used in setup rather than a
+   * screenshot: a picture of a sidebar goes stale the first time the sidebar
+   * changes, and this cannot. */
+  {
+    key: "plugin",
+    label: "The plugin",
+    tab: "howitworks",
+    anchor: "tab-howitworks",
+    title: "The plugin does both",
+    body: (
+      <>
+        <Steps
+          steps={[
+            "Open a job or a search",
+            "Click the plugin",
+            "Capture, or Save this search",
+          ]}
+        />
+        <div className="mt-2">
+          Two buttons, and it reads a page only when you press one. Install
+          links are on this tab.
+        </div>
       </>
     ),
   },

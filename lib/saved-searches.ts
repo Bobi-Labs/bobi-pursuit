@@ -103,3 +103,77 @@ export function removeSearch(id: string): SavedSearch[] {
   write(updated);
   return updated;
 }
+
+/* ── The extension handoff, parked ──────────────────────────────────────────
+ *
+ * "Save this search" arrives as a query param on `/`, and the app has to move
+ * to the Searches tab to show it. That move is a route change, and this was
+ * carried across it twice the wrong way first — in component state, which the
+ * remount destroys, and then in a module-level session object, which does not
+ * survive if the navigation is a document load rather than a soft push.
+ *
+ * Both failed silently and identically: the right tab, an empty form, no error
+ * anywhere. So it is parked in storage, which survives either kind of
+ * navigation and does not require knowing which one happened. Read once on the
+ * far side, then cleared — it is a message in transit, not a preference.
+ */
+
+const PENDING_KEY = "pursuit.pendingSearch";
+
+export interface PendingSearch {
+  url: string;
+  label: string;
+  site: string;
+}
+
+export function parkPendingSearch(pending: PendingSearch): void {
+  try {
+    window.sessionStorage.setItem(PENDING_KEY, JSON.stringify(pending));
+  } catch {
+    // Nothing to do; the user can still paste the URL by hand.
+  }
+}
+
+/**
+ * Reads WITHOUT clearing, and that separation is the fix rather than a style
+ * choice.
+ *
+ * This was read-and-clear, which is the obvious shape for a one-shot handoff
+ * and was wrong here for a reason worth writing down: `goTab` sets the tab
+ * optimistically so the click feels instant, and only then does the router
+ * commit the route. So the Searches panel mounts TWICE — once on the outgoing
+ * shell, once on the one the navigation produces. A token that deletes itself
+ * on read is consumed by the first mount and gone by the second, which is
+ * exactly what the user sees.
+ *
+ * Clearing is now `clearPendingSearch`, called when the search is actually
+ * saved. A refresh before saving re-fills the form, which is the right
+ * behaviour anyway: you have not dealt with it yet.
+ */
+export function peekPendingSearch(): PendingSearch | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(PENDING_KEY);
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      typeof (parsed as PendingSearch).url === "string" &&
+      isSafeUrl((parsed as PendingSearch).url)
+    ) {
+      return parsed as PendingSearch;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearPendingSearch(): void {
+  try {
+    window.sessionStorage.removeItem(PENDING_KEY);
+  } catch {
+    // Nothing to do.
+  }
+}

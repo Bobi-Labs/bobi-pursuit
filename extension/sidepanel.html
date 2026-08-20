@@ -119,6 +119,12 @@
             <div class="tab-url" id="tabUrl"></div>
           </div>
           <button class="primary" id="captureBtn">⬆ Capture this job</button>
+          <!-- Saving a search is a different action on the same page: capture
+               takes ONE posting, this keeps the query that found it. A tuned
+               search is the work — the salary floor, the radius, the date
+               filter — and it is what people lose. Ghost styling because
+               capture is still the common case. -->
+          <button class="ghost" id="saveSearchBtn">🔖 Save this search</button>
           <div class="hint">Tip: select the job description text first for the cleanest capture.</div>
           <div class="result" id="result"></div>
 

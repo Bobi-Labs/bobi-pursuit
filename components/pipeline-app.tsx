@@ -50,6 +50,8 @@ import { STARTER_PROFILE_ID, type Job, type PipelineStatus, type Profile } from 
 import { AddJobSheet, type AddResult, type NewJobInput } from "./add-job-sheet";
 import { clearHired, readHired, writeHired, type HiredRecord } from "@/lib/hired";
 import { Directory, type DirectoryEntry } from "./directory";
+import { SearchesPanel } from "./searches-panel";
+import { isSafeUrl, parkPendingSearch } from "@/lib/saved-searches";
 import { HowItWorksPanel, HowItWorksSheet } from "./how-it-works";
 import {
   ALERT_LABEL,
@@ -100,6 +102,7 @@ export type TabKey =
   | "pipeline"
   | "studio"
   | "jobsites"
+  | "searches"
   | "resources"
   | "howitworks";
 type View = "kanban" | "table";
@@ -122,6 +125,7 @@ const TABS: FolderTab<TabKey>[] = [
   { key: "pipeline", label: "Pipeline" },
   { key: "studio", label: "Job Studio" },
   { key: "jobsites", label: "Job Sites" },
+  { key: "searches", label: "Searches" },
   { key: "resources", label: "Resources" },
   { key: "howitworks", label: "How it works" },
 ];
@@ -140,6 +144,7 @@ const TAB_PATH: Record<TabKey, string> = {
   pipeline: "/pipeline/",
   studio: "/jobstudio/",
   jobsites: "/jobsites/",
+  searches: "/searches/",
   resources: "/resources/",
   howitworks: "/howitworks/",
 };
@@ -297,6 +302,9 @@ const STATUS_TONE = {
 /** Query params the capture link owns. Scrubbed after use so a refresh is inert. */
 const CAPTURE_PARAMS = ["add", "t", "u", "d", "b", "s", "c"];
 
+/** The other handoff: the extension sending the search you are looking at. */
+const SEARCH_PARAMS = ["savesearch", "u", "t", "s"];
+
 export default function PipelineApp({
   /**
    * Which tab this route opens on. Supplied by the four page files under `app/`,
@@ -399,6 +407,33 @@ export default function PipelineApp({
    * mismatch React "fixes" by silently rendering the wrong tree. */
   useEffect(() => {
     void store.init();
+
+    /* The extension's second handoff: "save this search".
+     *
+     * Handled before capture because both use `u` and `t`, and a link is one
+     * or the other — `savesearch=1` is the discriminator. Different origins
+     * mean the extension cannot write to this app's storage, so it opens a URL
+     * instead. Nothing is posted anywhere. */
+    const search = new URLSearchParams(window.location.search);
+    if (search.get("savesearch") === "1") {
+      const url = search.get("u") ?? "";
+      if (isSafeUrl(url)) {
+        // Parked in storage rather than memory: the goTab below is a route
+        // change, and neither component state nor the module-level session
+        // reliably survives one. See parkPendingSearch.
+        parkPendingSearch({
+          url,
+          label: (search.get("t") ?? "").slice(0, 120),
+          site: search.get("s") ?? "",
+        });
+        goTab("searches");
+      }
+      session.onboardingSettled = true;
+      const clean = new URL(window.location.href);
+      for (const key of SEARCH_PARAMS) clean.searchParams.delete(key);
+      window.history.replaceState({}, "", clean.pathname + clean.search + clean.hash);
+      return;
+    }
 
     const captured = parseCaptureParams(window.location.search);
     if (!captured) return;
@@ -829,8 +864,9 @@ export default function PipelineApp({
               categoryLabel={JOB_SITE_CATEGORY_LABEL}
               storageKey="pursuit.fav.jobsites"
               searchPlaceholder="Search sites, or try “RSS”, “ghost jobs”…"
-              savedSearches
             />
+          ) : tab === "searches" ? (
+            <SearchesPanel onGoJobSites={() => goTab("jobsites")} />
           ) : tab === "resources" ? (
             <Directory
               title="Resources"

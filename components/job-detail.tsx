@@ -96,6 +96,7 @@ export function JobStudioPanel({
   scoreError = null,
   onScoreWithClaude,
   onAddKey,
+  onHired,
 }: {
   job: Job | null;
   profiles: Profile[];
@@ -107,6 +108,8 @@ export function JobStudioPanel({
   canScoreWithClaude?: boolean;
   /** Opens Settings with the key field focused. See `onAddKey` in pipeline-app. */
   onAddKey?: () => void;
+  /** You got the job. Records it and offers to clear the board. */
+  onHired?: () => void;
   scoring?: boolean;
   /** A failed call, already phrased for a human. Rendered, never swallowed. */
   scoreError?: string | null;
@@ -353,6 +356,17 @@ export function JobStudioPanel({
                     {STATUS_LABEL[status]}
                   </Button>
                 ))}
+                {/* Only once something is actually live.
+                    Gated on `interviewing` rather than shown alongside the other
+                    two, because "Hired" on a card you have merely applied to is
+                    a button for an event that cannot have happened yet — the
+                    same reason the whole response row is absent before you
+                    apply. It is also not a status: see lib/hired.ts. */}
+                {job.pipelineStatus === "interviewing" && onHired ? (
+                  <Button size="sm" variant="solid" onClick={onHired}>
+                    🎉 Hired!
+                  </Button>
+                ) : null}
               </div>
               {job.pipelineStatus === "applied" ? (
                 <div className="mt-1.5 text-[14px] leading-snug text-text-muted">

@@ -24,7 +24,14 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
-import { Chip, INPUT, PanelHeader, cx } from "./ui";
+import {
+  addSearch,
+  isSafeUrl,
+  readSearches,
+  removeSearch,
+  type SavedSearch,
+} from "@/lib/saved-searches";
+import { Button, Chip, INPUT, PanelHeader, cx } from "./ui";
 
 export interface DirectoryEntry {
   name: string;
@@ -93,6 +100,7 @@ export function Directory({
   categoryLabel,
   storageKey,
   searchPlaceholder,
+  savedSearches,
 }: {
   title: string;
   sub: string;
@@ -102,9 +110,17 @@ export function Directory({
   /** Its own localStorage key — see the note on favourites above. */
   storageKey: string;
   searchPlaceholder: string;
+  /** Job Sites only. Resources has nothing to search on somebody else's site. */
+  savedSearches?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
+  const [searches, setSearches] = useState<SavedSearch[]>([]);
+  const [adding, setAdding] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (savedSearches) setSearches(readSearches());
+  }, [savedSearches]);
   const [onlyFavourites, setOnlyFavourites] = useState(false);
   const { favourites, toggle } = useFavourites(storageKey);
 
@@ -142,6 +158,13 @@ export function Directory({
   return (
     <div>
       <PanelHeader title={title} sub={sub} />
+
+      {savedSearches ? (
+        <SavedSearches
+          searches={searches}
+          onRemove={(id) => setSearches(removeSearch(id))}
+        />
+      ) : null}
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <input
@@ -195,6 +218,13 @@ export function Directory({
               starred={favourites.includes(entry.name)}
               onStar={() => toggle(entry.name)}
               categoryLabel={categoryLabel}
+              adding={adding === entry.name}
+              onAdd={savedSearches ? () => setAdding(entry.name) : undefined}
+              onCancelAdd={() => setAdding(null)}
+              onSaveSearch={(label, url) => {
+                setSearches(addSearch({ label, url, site: entry.name }));
+                setAdding(null);
+              }}
             />
           ))}
         </div>
@@ -208,11 +238,19 @@ function Row({
   starred,
   onStar,
   categoryLabel,
+  adding,
+  onAdd,
+  onCancelAdd,
+  onSaveSearch,
 }: {
   entry: DirectoryEntry;
   starred: boolean;
   onStar: () => void;
   categoryLabel: Record<string, string>;
+  adding?: boolean;
+  onAdd?: () => void;
+  onCancelAdd?: () => void;
+  onSaveSearch?: (label: string, url: string) => void;
 }) {
   return (
     <div className="rounded-[10px] border border-border bg-card p-3">
@@ -262,6 +300,139 @@ function Row({
 
       <Points tone="good" items={entry.strengths} />
       <Points tone="bad" items={entry.weaknesses} />
+
+      {onAdd && !adding ? (
+        <button
+          type="button"
+          onClick={onAdd}
+          className="mt-2 text-[13px] font-semibold text-muted-foreground transition-colors hover:text-primary"
+        >
+          + Save a search here
+        </button>
+      ) : null}
+
+      {adding && onSaveSearch ? (
+        <SaveSearchForm
+          site={entry.name}
+          onCancel={onCancelAdd ?? (() => {})}
+          onSave={onSaveSearch}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Paste the URL of a search you have already tuned on that site.
+ *
+ * Deliberately a paste rather than a form that builds the query. Every board
+ * has its own parameters and changes them without warning; a builder would be
+ * subtly wrong on half of them within a year, and wrong in a way the user
+ * cannot see. Their own URL is always exactly right.
+ */
+function SaveSearchForm({
+  site,
+  onSave,
+  onCancel,
+}: {
+  site: string;
+  onSave: (label: string, url: string) => void;
+  onCancel: () => void;
+}) {
+  const [label, setLabel] = useState("");
+  const [url, setUrl] = useState("");
+  const valid = isSafeUrl(url);
+
+  return (
+    <div className="mt-2 rounded-lg border border-border bg-elevated p-2.5">
+      <div className="mb-1.5 text-[13px] text-text-muted">
+        Tune a search on {site}, then paste its address here.
+      </div>
+      <input
+        className={cx(INPUT, "mb-1.5")}
+        value={label}
+        onChange={(e) => setLabel(e.target.value)}
+        placeholder="Name it — “Remote PM, £70k+”"
+      />
+      <input
+        className={cx(INPUT, "mb-1.5 font-mono text-[12px]")}
+        value={url}
+        onChange={(e) => setUrl(e.target.value)}
+        placeholder="https://…"
+      />
+      <div className="flex items-center gap-1.5">
+        <Button
+          size="sm"
+          variant="primary"
+          disabled={!valid}
+          onClick={() => onSave(label, url)}
+        >
+          Save
+        </Button>
+        <Button size="sm" onClick={onCancel}>
+          Cancel
+        </Button>
+        {url && !valid ? (
+          <span className="text-[13px] text-amber-400">
+            Needs to be a full http(s) address.
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The saved list, above the directory because it is what you came back for.
+ *
+ * A returning user is not browsing seventy-six sites; they are re-running the
+ * four searches they already tuned.
+ */
+function SavedSearches({
+  searches,
+  onRemove,
+}: {
+  searches: SavedSearch[];
+  onRemove: (id: string) => void;
+}) {
+  if (searches.length === 0) return null;
+  return (
+    <div className="mb-4 rounded-[10px] border border-border bg-card p-3">
+      <div className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
+        Your searches
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {searches.map((s) => (
+          <span
+            key={s.id}
+            className="inline-flex items-center gap-1 rounded-md border border-border bg-elevated pl-2.5 text-[13px]"
+          >
+            <a
+              href={s.url}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="py-1.5 font-semibold text-foreground transition-colors hover:text-primary"
+              title={s.url}
+            >
+              {s.label} ↗
+            </a>
+            <span className="text-[12px] text-text-muted">{s.site}</span>
+            <button
+              type="button"
+              onClick={() => onRemove(s.id)}
+              title="Remove this search"
+              className="px-1.5 py-1.5 text-muted-foreground transition-colors hover:text-red-400"
+            >
+              ✕
+            </button>
+          </span>
+        ))}
+      </div>
+      <div className="mt-2 text-[13px] leading-snug text-text-muted">
+        These are links you saved, reopened in one click. Nothing here runs a
+        search or watches for new postings — the app has no server and cannot.
+        Where a site offers email alerts, letting it tell you beats checking.
+      </div>
     </div>
   );
 }

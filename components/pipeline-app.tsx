@@ -48,6 +48,7 @@ import { usePipeline, useStoreStatus } from "@/lib/store/use-pipeline";
 import { STARTER_PROFILE_ID, type Job, type PipelineStatus, type Profile } from "@/lib/types";
 
 import { AddJobSheet, type AddResult, type NewJobInput } from "./add-job-sheet";
+import { clearHired, readHired, writeHired, type HiredRecord } from "@/lib/hired";
 import { Directory, type DirectoryEntry } from "./directory";
 import { HowItWorksPanel, HowItWorksSheet } from "./how-it-works";
 import {
@@ -371,6 +372,13 @@ export default function PipelineApp({
   /* Whether Settings was opened to add a key, rather than to browse settings.
      Reset on close so the next ordinary visit starts at the top. */
   const [settingsFocusKey, setSettingsFocusKey] = useState(false);
+  /* The congratulations banner, read from its own storage key.
+     Effect, never render: static export, no localStorage at build time. */
+  const [hired, setHired] = useState<HiredRecord | null>(null);
+  const [offerClear, setOfferClear] = useState(false);
+  useEffect(() => {
+    setHired(readHired());
+  }, []);
   const [howOpen, setHowOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [tourOpen, setTourOpen] = useSessionState("tourOpen");
@@ -681,6 +689,60 @@ export default function PipelineApp({
         </div>
       </header>
 
+      {/* ═══ you got the job ═══
+          Above everything, because on the day it is true it is the only thing
+          on this screen that matters. It survives clearing the board on
+          purpose — that is the whole flow: celebrate, wipe the pipeline, and
+          the banner is still there afterwards explaining why it is empty. */}
+      {hired ? (
+        <div className="border-b border-emerald-500/30 bg-emerald-500/[0.08] px-4 py-3 sm:px-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[15px] font-bold text-emerald-300">
+                🎉 Congratulations on your new role
+                {hired.company ? ` at ${hired.company}` : ""}
+              </div>
+              <div className="mt-0.5 truncate text-[14px] text-emerald-200/70">
+                {hired.title}
+              </div>
+            </div>
+            <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+              {offerClear ? (
+                <>
+                  <span className="text-[14px] text-emerald-200/80">
+                    Clear the board and start fresh?
+                  </span>
+                  <Button
+                    size="md"
+                    variant="solid"
+                    onClick={() => {
+                      setOfferClear(false);
+                      handleWipe();
+                      store.clearAll();
+                    }}
+                  >
+                    Clear the board
+                  </Button>
+                  <Button size="md" onClick={() => setOfferClear(false)}>
+                    Keep it
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  size="md"
+                  onClick={() => {
+                    clearHired();
+                    setHired(null);
+                  }}
+                >
+                  Dismiss
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* ═══ who made this ═══
           Placed between the banner and the tabs, in the empty run of space the
           operator pointed at, and deliberately quiet: small type, muted colour,
@@ -767,6 +829,7 @@ export default function PipelineApp({
               categoryLabel={JOB_SITE_CATEGORY_LABEL}
               storageKey="pursuit.fav.jobsites"
               searchPlaceholder="Search sites, or try “RSS”, “ghost jobs”…"
+              savedSearches
             />
           ) : tab === "resources" ? (
             <Directory
@@ -828,6 +891,16 @@ export default function PipelineApp({
               job={selected}
               profiles={profiles}
               onGoPipeline={() => goTab("pipeline")}
+              onHired={() => {
+                if (!selected) return;
+                writeHired({
+                  title: selected.title,
+                  company: selected.company,
+                  at: new Date().toISOString(),
+                });
+                setHired(readHired());
+                setOfferClear(true);
+              }}
               onAddKey={() => {
                 setSettingsFocusKey(true);
                 setSettingsOpen(true);
@@ -900,6 +973,13 @@ export default function PipelineApp({
             setSettingsFocusKey(false);
           }}
           onWipe={handleWipe}
+          onReplayTour={() => {
+            setSettingsOpen(false);
+            // Clear the latch FIRST: startTour() early-returns when the tour has
+            // been seen, which is true of everyone who would want to replay it.
+            resetTourSeen();
+            startTour();
+          }}
           focusKey={settingsFocusKey}
         />
       ) : null}

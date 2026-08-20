@@ -92,10 +92,13 @@ export function SettingsSheet({
    * `handleWipe` in `pipeline-app.tsx`.
    */
   onWipe,
+  onReplayTour,
   focusKey = false,
 }: {
   onClose: () => void;
   onWipe: () => void;
+  /** Re-arms the tour and closes this sheet so it is not left under the overlay. */
+  onReplayTour: () => void;
   /**
    * Opened from "Add a Claude key" rather than from the Settings button, so
    * land on the key field instead of at the top of a long sheet.
@@ -778,6 +781,16 @@ export function SettingsSheet({
                 onChange={importJson}
               />
             </label>
+            {/* Replaying the walkthrough required deleting your entire board.
+                `resetTourSeen` existed but its only caller was the wipe handler,
+                so the sole route back to the tour was destroying the thing the
+                tour explains. The operator hit exactly this: told the tour had
+                gained four stops, hard-refreshed, and saw nothing — because the
+                seen-flag had been set days earlier and nothing in the product
+                could clear it. */}
+            <Button size="md" onClick={onReplayTour}>
+              ↻ Replay the walkthrough
+            </Button>
             <Button
               size="md"
               onClick={() => {

@@ -49,6 +49,11 @@ import { STARTER_PROFILE_ID, type Job, type PipelineStatus, type Profile } from 
 
 import { AddJobSheet, type AddResult, type NewJobInput } from "./add-job-sheet";
 import { clearHired, readHired, writeHired, type HiredRecord } from "@/lib/hired";
+import {
+  DesktopGate,
+  readMobileBypass,
+  writeMobileBypass,
+} from "./desktop-gate";
 import { Directory, type DirectoryEntry } from "./directory";
 import { SearchesPanel } from "./searches-panel";
 import { isSafeUrl, parkPendingSearch } from "@/lib/saved-searches";
@@ -390,6 +395,14 @@ export default function PipelineApp({
   }, []);
   const [howOpen, setHowOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
+
+  /* Someone who chose to use a phone anyway, on a previous visit.
+     Starts false so the prerendered HTML is the gate — the honest default —
+     and only a stored preference or a click turns it off. */
+  const [bypassed, setBypassed] = useState(false);
+  useEffect(() => {
+    if (readMobileBypass()) setBypassed(true);
+  }, []);
   const [tourOpen, setTourOpen] = useSessionState("tourOpen");
   const [tourStep, setTourStep] = useSessionState("tourStep");
   /* Tier 2, one job at a time. The id (not a boolean) so switching jobs mid-call
@@ -675,6 +688,32 @@ export default function PipelineApp({
   }, [status.loaded, doc.jobs.length, profiles, startTour]);
 
   return (
+    <>
+      {/* ═══ narrow screens get the gate, not the app ═══
+       *
+       * Driven by a CSS breakpoint rather than a measured width, and that is the
+       * point: this is a static export that prerenders in Node, so anything
+       * measured in an effect would paint the full app for a frame before
+       * replacing it — the worst version of this screen is the one that flashes
+       * the thing it is about to take away.
+       *
+       * `md:hidden` / `hidden md:block` means the server-rendered HTML is
+       * already correct at every width, with no hydration mismatch and no
+       * flash. `bypassed` is the only JS in it, and only after a click.
+       *
+       * The app still MOUNTS underneath — hidden, not unmounted — so pressing
+       * "Continue anyway" is instant and the board is exactly as it was. See
+       * desktop-gate.tsx for why the gate positions itself `fixed`. */}
+      <div className={bypassed ? "hidden" : "md:hidden"}>
+        <DesktopGate
+          onContinue={() => {
+            writeMobileBypass();
+            setBypassed(true);
+          }}
+        />
+      </div>
+
+      <div className={bypassed ? undefined : "hidden md:block"}>
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
       {/* ═══ banner ═══ */}
       <header className="relative overflow-hidden border-b border-border px-4 pb-4 pt-5 sm:px-6">
@@ -688,9 +727,27 @@ export default function PipelineApp({
             <h1 className="text-2xl font-bold -tracking-[0.02em]">
               Bobi<span className="text-emerald-400">·</span>Pursuit
             </h1>
+            {/* Counts only. "No accounts · no server of ours" used to trail
+                them, one line under a banner that already says LOCAL-FIRST —
+                the same claim twice in the same glance, in the strip whose job
+                is to tell you how much work is waiting. */}
             <div className="mt-1 text-[14px] text-muted-foreground">
               {doc.jobs.length} captured · {triageCount} to review ·{" "}
-              {promotedCount} promoted · no accounts · no server of ours
+              {promotedCount} promoted
+            </div>
+            {/* Phones only, permanent, no dismiss button.
+                A dismissible banner is a thing you close in the first second and
+                then cannot find when the cramped screen actually confuses you.
+
+                ⚠️ It warns rather than reassures, and the difference matters.
+                The first draft said a phone was "great for checking in", which
+                is false: there is no sync, so this board is not the one on the
+                desktop — it is a separate, empty board that happens to look the
+                same. Somebody triaging jobs here on a commute would lose the
+                afternoon's work to that misunderstanding. */}
+            <div className="mt-1.5 text-[13px] text-amber-300/90 sm:hidden">
+              Built for desktop. This board saves in this phone’s browser only —
+              it will not appear on your computer.
             </div>
           </div>
           <div className="relative flex flex-wrap items-center gap-1.5">
@@ -881,7 +938,7 @@ export default function PipelineApp({
             // empty board render instantly on a cold visit.
             <Directory
               title="Job Sites"
-              sub="Where the postings are. Nothing here is fetched or scraped — open one, find something, and capture it with the extension. Strengths and weaknesses are both stated, because a directory that only praises is an advert."
+              sub="Every job posting site we know of. Missing one you use? Tell us."
               entries={JOB_SITE_ENTRIES}
               categories={JOB_SITE_CATEGORIES}
               categoryLabel={JOB_SITE_CATEGORY_LABEL}
@@ -893,7 +950,7 @@ export default function PipelineApp({
           ) : tab === "resources" ? (
             <Directory
               title="Resources"
-              sub="Everything a job hunt needs that is not a job: CV help, cover letters, interview practice, pay research and your rights. Cost is stated up front, because the usual way these lists waste your time is a paywall you meet an hour in."
+              sub="CV help, cover letters, interview practice, pay research and your rights. Free or paid is marked on every one."
               entries={RESOURCE_ENTRIES}
               categories={RESOURCE_CATEGORIES}
               categoryLabel={RESOURCE_CATEGORY_LABEL}
@@ -1059,6 +1116,8 @@ export default function PipelineApp({
         onClose={() => setTourOpen(false)}
       />
     </div>
+      </div>
+    </>
   );
 }
 
@@ -1134,7 +1193,10 @@ function PipelinePanel({
     <div>
       <PanelHeader
         title="Pipeline"
-        sub="Triage is everything captured and undecided — Promote what is worth an afternoon, Skip the rest. Applied and Interviewing are steps only you can take: nothing here can send anything, or know that anyone replied. Declined and Skipped are kept, out of the way, and restorable."
+        // What each column is for is written inside the column, on the empty
+        // placeholder, where you are looking when you need it. Saying it a
+        // second time up here in one long sentence was the version nobody read.
+        sub="Your pipeline — move the jobs you capture through the process here."
         actions={
           sub === "working" ? <ViewToggle value={view} options={VIEWS} onChange={onView} /> : undefined
         }
@@ -1420,8 +1482,7 @@ function EmptyBoard({
     <div className="py-6 text-center">
       <div className="text-[14px] font-bold">The board is empty</div>
       <p className="mx-auto mt-1.5 max-w-md text-[14px] leading-relaxed text-muted-foreground">
-        Jobs arrive by capture — the extension, the bookmarklet, or the add form.
-        Each column below says what it is for.
+        Capture a job with the plugin and it lands here, scored.
       </p>
       <div className="mt-3 flex flex-wrap justify-center gap-2">
         <Button size="md" variant="primary" onClick={onLoadSample}>

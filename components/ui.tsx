@@ -30,7 +30,14 @@
  *  3. **Numbers are `font-mono`.** Scores, budgets, counts, ages. Always.
  */
 
-import { useEffect, type ButtonHTMLAttributes, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ButtonHTMLAttributes,
+  type ReactNode,
+} from "react";
 
 /** The world's smallest `clsx`. Falsy parts drop out; that is the whole feature. */
 export function cx(...parts: Array<string | false | null | undefined>): string {
@@ -556,7 +563,11 @@ export function KanbanCol({
   return (
     <div
       data-tour={anchor}
-      className="flex min-h-[480px] flex-col rounded-[10px] border border-border bg-muted/30"
+      // 480px is a column height, and columns are a desktop idea. Stacked on a
+      // phone the same number is five screenfuls of mostly empty box between you
+      // and the next stage — the board reads as broken long before you reach the
+      // bottom of it. The tall floor comes back the moment they sit side by side.
+      className="flex min-h-[200px] flex-col rounded-[10px] border border-border bg-muted/30 md:min-h-[480px]"
     >
       <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
         <span className="text-[14px] font-bold">{label}</span>
@@ -751,49 +762,134 @@ export function FolderTabs<K extends string>({
   onChange: (k: K) => void;
   className?: string;
 }) {
+  /* ── the narrow-screen problem this solves ──────────────────────────────
+   *
+   * Six tabs need 725px. A phone has 375. The strip has always scrolled, so
+   * nothing was broken in the sense of overlapping or clipped — but four of the
+   * six were simply off the right edge with no hint they existed, and a scroller
+   * with no visible overflow cue is indistinguishable from a list that ends.
+   * Job Sites, Searches and Resources are the tabs that work on day one with an
+   * empty board, and on a phone they were effectively unshipped.
+   *
+   * Two fixes, both small. The active tab scrolls itself into view, so arriving
+   * from a link, the tour or a nested button never leaves the current tab
+   * off-screen. And a fade on whichever edge has more behind it says "there is
+   * more this way" — measured, not assumed, so it disappears the moment the
+   * strip actually fits.
+   */
+  const strip = useRef<HTMLElement | null>(null);
+  const [edges, setEdges] = useState({ left: false, right: false });
+
+  const measure = useCallback(() => {
+    const el = strip.current;
+    if (!el) return;
+    const max = el.scrollWidth - el.clientWidth;
+    setEdges({ left: el.scrollLeft > 2, right: el.scrollLeft < max - 2 });
+  }, []);
+
+  useEffect(() => {
+    measure();
+    const el = strip.current;
+    if (!el) return;
+    // ResizeObserver rather than a window listener: the strip also changes width
+    // when a count badge appears, which no resize event announces.
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [measure, tabs.length]);
+
+  useEffect(() => {
+    const nav = strip.current;
+    const el = nav?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!nav || !el) return;
+    /* Scrolled by hand rather than with `scrollIntoView`.
+     *
+     * `inline: "nearest"` parks the tab flush against the edge, which is
+     * technically visible and practically wrong here — the fade is painted over
+     * that exact strip, so the tab you just selected arrives dimmed. A margin
+     * wider than the fade is the whole difference.
+     *
+     * Smooth on purpose, first paint included: watching the strip move is the
+     * clearest possible statement that it scrolls. */
+    // Comfortably wider than the 32px fade — measured at 36 and the tab still
+    // landed 3px under the gradient's tail, because `offsetLeft` and
+    // `clientWidth` disagree about the strip's own left padding.
+    const margin = 44;
+    const left = el.offsetLeft - margin;
+    const right = el.offsetLeft + el.offsetWidth + margin;
+    if (left < nav.scrollLeft) {
+      nav.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
+    } else if (right > nav.scrollLeft + nav.clientWidth) {
+      nav.scrollTo({ left: right - nav.clientWidth, behavior: "smooth" });
+    }
+  }, [active]);
+
   return (
-    <nav
-      className={cx("relative z-10 flex gap-0.5 overflow-x-auto pl-1", className)}
-    >
-      {tabs.map((t) => {
-        const isActive = t.key === active;
-        const count = counts?.[t.key];
-        return (
-          <button
-            key={t.key}
-            type="button"
-            // Stable hook for the first-run tour to point at. Generic on purpose:
-            // this component knows nothing about the tour beyond the attribute.
-            data-tour={`tab-${t.key}`}
-            onClick={() => onChange(t.key)}
-            aria-current={isActive ? "page" : undefined}
-            className={cx(
-              "relative -mb-px inline-flex items-center gap-2 whitespace-nowrap rounded-t-[10px] border border-border px-4 py-3 text-[14px] font-medium transition-colors",
-              isActive
-                ? "z-20 border-b-card bg-card pb-[14px] text-foreground"
-                : "bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground",
-            )}
-          >
-            {isActive && (
-              <span className="absolute left-[-1px] right-[-1px] top-[-1px] h-0.5 rounded-t-[10px] bg-primary" />
-            )}
-            {t.label}
-            {count != null && (
-              <span
-                className={cx(
-                  "rounded-full border px-1.5 py-0.5 font-mono text-[12px] font-semibold",
-                  isActive
-                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-                    : "border-border bg-card text-muted-foreground",
-                )}
-              >
-                {count}
-              </span>
-            )}
-          </button>
-        );
-      })}
-    </nav>
+    <div className="relative">
+      {/* Sit above the tabs (`z-30`) but take no clicks. */}
+      {edges.left ? (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 left-0 z-30 w-6 bg-gradient-to-r from-background to-transparent"
+        />
+      ) : null}
+      {edges.right ? (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0 z-30 w-8 bg-gradient-to-l from-background to-transparent"
+        />
+      ) : null}
+      <nav
+        ref={strip}
+        onScroll={measure}
+        className={cx(
+          "relative z-10 flex gap-0.5 overflow-x-auto pl-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+          className,
+        )}
+      >
+        {tabs.map((t) => {
+          const isActive = t.key === active;
+          const count = counts?.[t.key];
+          return (
+            <button
+              key={t.key}
+              type="button"
+              // Stable hook for the first-run tour to point at. Generic on purpose:
+              // this component knows nothing about the tour beyond the attribute.
+              data-tour={`tab-${t.key}`}
+              onClick={() => onChange(t.key)}
+              aria-current={isActive ? "page" : undefined}
+              className={cx(
+                // Tighter on a phone. Six tabs at desktop padding need 725px;
+                // this claws back enough that a third one shows, which is what
+                // makes the strip read as scrollable rather than finished.
+                "relative -mb-px inline-flex items-center gap-1.5 whitespace-nowrap rounded-t-[10px] border border-border px-3 py-2.5 text-[14px] font-medium transition-colors sm:gap-2 sm:px-4 sm:py-3",
+                isActive
+                  ? "z-20 border-b-card bg-card pb-[11px] text-foreground sm:pb-[14px]"
+                  : "bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+              )}
+            >
+              {isActive && (
+                <span className="absolute left-[-1px] right-[-1px] top-[-1px] h-0.5 rounded-t-[10px] bg-primary" />
+              )}
+              {t.label}
+              {count != null && (
+                <span
+                  className={cx(
+                    "rounded-full border px-1.5 py-0.5 font-mono text-[12px] font-semibold",
+                    isActive
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                      : "border-border bg-card text-muted-foreground",
+                  )}
+                >
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </nav>
+    </div>
   );
 }
 

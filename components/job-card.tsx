@@ -195,8 +195,13 @@ export function JobCard({
         ))}
       </div>
 
-      <div className="mt-2 flex items-center justify-between gap-2">
-        <span className="min-w-0 truncate font-mono text-[12px] text-muted-foreground">
+      {/* Stacked on a phone, one row from `sm`.
+          Sharing a row with the action buttons left the pay line 119px on a
+          375px screen — "$145k-$180k + equity · 2d" arrived as "$145k-$180k +
+          equ…", which cuts exactly the half a person is reading the card for.
+          Wrapping is free here; the buttons have a full row underneath. */}
+      <div className="mt-2 flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
+        <span className="w-full min-w-0 truncate font-mono text-[12px] text-muted-foreground sm:w-auto">
           {job.budgetHint || "no budget"} · {relAge(job.createdAt)}
           {/* Silence is the usual outcome of an application, and an Applied
               column with no clock becomes twenty identical cards you cannot

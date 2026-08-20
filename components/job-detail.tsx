@@ -123,7 +123,7 @@ export function JobStudioPanel({
       <div>
         <PanelHeader
           title="Job Studio"
-          sub="One job at a time: every track's verdict, the signals behind each number, the posting itself, and your notes."
+          sub="One job, every track's score, and the reasons behind each number."
         />
         <div className="py-20 text-center">
           <div className="text-[14px] font-semibold">No job open</div>
@@ -498,7 +498,12 @@ function Field({ label, value, mono }: { label: string; value: string; mono?: bo
       <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         {label}
       </div>
-      <div className={cx("mt-1 truncate text-[14px]", mono && "font-mono")}>
+      {/* `break-words`, not `truncate`. These are four facts about the job, in
+          the panel you opened to read the facts — a hidden second half is worse
+          than a second line. Two columns on a phone gave each value 124px, which
+          turned "Remote — US, Canada, UK, EU" into "Remote — US, Cana…" and the
+          pay into a number with no ceiling. */}
+      <div className={cx("mt-1 break-words text-[14px]", mono && "font-mono")}>
         {value || "—"}
       </div>
     </div>
@@ -508,7 +513,7 @@ function Field({ label, value, mono }: { label: string; value: string; mono?: bo
 function StudioOverview({ job }: { job: Job }) {
   return (
     <div>
-      <div className="mb-4 grid grid-cols-2 gap-2.5 md:grid-cols-3">
+      <div className="mb-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2 md:grid-cols-3">
         <Field label="Source" value={job.source || "manual"} />
         <Field label="Company" value={job.company} />
         <Field label="Location" value={job.location} />

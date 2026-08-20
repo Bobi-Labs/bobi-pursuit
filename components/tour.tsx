@@ -183,7 +183,8 @@ function Strong({ children }: { children: ReactNode }) {
 }
 
 /**
- * The five stops, in tab order after the first.
+ * The stops, in the order the tabs sit — except the last, which comes back to
+ * Pipeline deliberately so the tour ends on the board and not on a manual.
  *
  * Exported because `pipeline-app.tsx` reads `.tab` to drive the address bar. It
  * is the only field anything outside this file touches.
@@ -210,25 +211,18 @@ export const TOUR_STOPS: readonly TourStop[] = [
     title: "Start here when you come back",
     body: <>Five counts. Each one is a button into that slice of the board.</>,
   },
-  {
-    key: "pipeline",
-    label: "Pipeline",
-    tab: "pipeline",
-    anchor: "tab-pipeline",
-    title: "Decide once, not four times",
-    body: (
-      <>
-        Four columns, left to right. Declined and Skipped sit behind their own
-        tabs — kept, not deleted.
-      </>
-    ),
-  },
-  /* Three stops on the board itself, one per decision you actually make.
+  /* Four stops on the board itself, one per column, in the order a card moves.
    *
-   * Naming the tab was never teaching it. Each of these rings the column it
-   * describes, so the words and the thing are on screen together — and each
-   * names the ONE action that moves a card out, because that is the only
-   * question a new user has while looking at it. */
+   * ⚠️ **Every column gets one.** Promoted was missing for a long time and the
+   * tour jumped Triage → Applied, which quietly taught the wrong shape: that
+   * you apply to things straight out of triage. Promoted is the shortlist, and
+   * skipping it in the walkthrough skipped the one habit the board exists to
+   * create. If a column is ever added, it gets a stop here or the sequence
+   * lies about the process again.
+   *
+   * A stop that only named the Pipeline TAB used to sit in front of these and
+   * is now the closer at the end — naming a tab was never teaching it, and
+   * these four ring the thing they describe. */
   {
     key: "triage",
     label: "Triage",
@@ -239,6 +233,19 @@ export const TOUR_STOPS: readonly TourStop[] = [
       <>
         Everything captured lands here, already scored. Promote what is worth an
         afternoon, Skip the rest — fast.
+      </>
+    ),
+  },
+  {
+    key: "promoted",
+    label: "Promoted",
+    tab: "pipeline",
+    anchor: "col-promoted",
+    title: "Your shortlist",
+    body: (
+      <>
+        The ones worth real effort. Write the application in your own time, then
+        mark it applied.
       </>
     ),
   },
@@ -308,12 +315,15 @@ export const TOUR_STOPS: readonly TourStop[] = [
       </>
     ),
   },
-  /* The plugin gets the last word, and it is the only stop describing something
-   * that is not on screen — which is the point. Everything the tour has shown
-   * so far assumes a job is already on the board, and this is the thing that
-   * puts it there. Drawn as the same Steps used in setup rather than a
-   * screenshot: a picture of a sidebar goes stale the first time the sidebar
-   * changes, and this cannot. */
+  /* The plugin, and it is the only stop describing something that is not on
+   * screen — which is the point. Everything the tour has shown so far assumes a
+   * job is already on the board, and this is the thing that puts it there.
+   * Drawn as the same Steps used in setup rather than a screenshot: a picture of
+   * a sidebar goes stale the first time the sidebar changes, and this cannot.
+   *
+   * This was two stops, both anchored to the same tab, one about the plugin and
+   * one about the manual — the second was a stop whose content was "this tab
+   * exists", spent on a reader eleven boxes deep. Merged. */
   {
     key: "plugin",
     label: "The plugin",
@@ -330,23 +340,33 @@ export const TOUR_STOPS: readonly TourStop[] = [
           ]}
         />
         <div className="mt-2">
-          Two buttons, and it reads a page only when you press one. Install
-          links are on this tab.
+          Install links and every other capture route are on this tab. Your data
+          stays in this browser, so <Strong>Export</Strong> in Settings is what
+          makes it survive a lost laptop.
         </div>
       </>
     ),
   },
+  /* ⚠️ **The last stop must leave them somewhere they can work.**
+   *
+   * The tour used to end on How it works — a reference tab — so finishing it
+   * dropped a brand-new user on the manual, facing a wall of prose, with the
+   * board they had just been taught nowhere in sight. A walkthrough that ends
+   * on documentation has undone its own last five minutes.
+   *
+   * Ending here also gives the one genuinely useful fact from the old
+   * tab-naming stop somewhere to live: the closed piles are kept, not deleted. */
   {
-    key: "howitworks",
-    label: "How it works",
-    tab: "howitworks",
-    anchor: "tab-howitworks",
-    title: "The manual, and one warning",
+    key: "done",
+    label: "Start here",
+    tab: "pipeline",
+    anchor: "tab-pipeline",
+    title: "That’s it — this is your board",
     body: (
       <>
-        Every capture route lives here. Your data stays in this browser — no
-        server holds a copy, so <Strong>Export</Strong> in Settings is what
-        makes it survive a lost laptop.
+        Capture something and it lands in Triage, scored. Declined and Skipped
+        sit behind their own tabs — kept, not deleted, in case you change your
+        mind.
       </>
     ),
   },

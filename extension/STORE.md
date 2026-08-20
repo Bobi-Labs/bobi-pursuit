@@ -138,16 +138,23 @@ in it was already hard to answer from memory.
 
 | | Chrome | Firefox |
 |---|---|---|
-| Live | 0.1.1 _(unconfirmed — see below)_ | **0.1.3** _(API-verified)_ |
-| In review | 0.1.2 or 0.1.3 (dashboard only) | 0.1.4 |
-| Built in repo | 0.1.4 | 0.1.4 |
+| Live | in review (dashboard only) | **0.1.7** _(API-verified)_ |
+| Built in repo | 0.1.7 | 0.1.7 |
 
-_Checked 2026-08-20 with the commands below, not from memory — and the check
-immediately corrected a guess of 0.1.2 for Chrome. Assume this table is stale._
+_Checked 2026-08-20 with the commands below, not from memory. Assume this table
+is stale — the whole point of the next section is that you can rebuild it in
+thirty seconds rather than trusting these numbers._
 
-**Chrome cannot be submitted while a review is pending**, which is why 0.1.4 is
-built and waiting: the 0.1.3 review has to clear first. Firefox accepts a new
-submission over a pending one.
+**0.1.0 → 0.1.7 in one day**, which is worth knowing before you read that as
+churn: every bump but one came from the operator using the thing and finding
+something. Firefox turns a submission around in hours and Chrome does not, so
+the two drift apart constantly and this table is the only place that records it.
+
+**Chrome cannot be submitted while a review is pending**, so a fix found while
+an earlier version is in the queue has to wait for that queue. Firefox accepts a
+new submission over a pending one, which is why it is the right place to test a
+correction first — it is the faster loop by a wide margin, and several of the
+bumps below only exist because a fix could be verified there the same day.
 
 ### Re-deriving it, because a hand-kept table always rots
 

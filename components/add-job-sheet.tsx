@@ -17,6 +17,10 @@
 
 import { useState } from "react";
 
+import {
+  CHROME_EXTENSION_URL,
+  FIREFOX_EXTENSION_URL,
+} from "@/lib/app-config";
 import type { CaptureParams } from "@/lib/capture";
 import { bestLabel } from "@/lib/profile-view";
 import type { Job, Profile } from "@/lib/types";
@@ -237,6 +241,48 @@ export function AddJobSheet({
               placeholder="Paste the job description here…"
             />
           </Field>
+
+          {/* ⚠️ The plugin pitch belongs HERE, at the bottom of the manual
+              form, and nowhere else would work as well.
+              This is the one moment a person has proved they want to capture a
+              job and is doing it the slow way — six fields and a paste. Someone
+              who reached this screen either never learned there is a plugin or
+              did not connect it to what they are doing right now, and a link on
+              the How it works tab does not reach either of them. An offer to
+              stop typing lands when the typing is in front of you.
+
+              Only on the manual path: `prefill` means they arrived FROM the
+              plugin, and selling it to an existing user is noise. */}
+          {!prefill ? (
+            <div className="rounded-[10px] border border-amber-500/30 bg-amber-500/[0.07] p-3">
+              <div className="text-[14px] font-semibold text-amber-300">
+                Plugins make this much smoother — capture straight from the job
+                site.
+              </div>
+              <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+                Open a posting, click the plugin, and it fills all of this in
+                for you.
+              </p>
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                <a
+                  href={CHROME_EXTENSION_URL}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-[13px] font-semibold text-amber-200 transition-colors hover:bg-amber-500/20"
+                >
+                  Get it for Chrome ↗
+                </a>
+                <a
+                  href={FIREFOX_EXTENSION_URL}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-[13px] font-semibold text-amber-200 transition-colors hover:bg-amber-500/20"
+                >
+                  Get it for Firefox ↗
+                </a>
+              </div>
+            </div>
+          ) : null}
         </div>
       )}
     </Sheet>

@@ -10,10 +10,15 @@
  * second inside the first is what made the operator ask where saved searches
  * even were.
  *
- * **What this is not, said plainly on the page.** Nothing here runs a search,
- * polls a board or notices a new posting. The app has no server and a page in
- * your browser cannot fetch a job board cross-origin. These are your own URLs,
- * reopened in one click.
+ * **What this is not.** Nothing here runs a search, polls a board or notices a
+ * new posting. The app has no server and a page in your browser cannot fetch a
+ * job board cross-origin. These are your own URLs, reopened in one click.
+ *
+ * That paragraph used to be the panel's subtitle and is now a code comment,
+ * because a caveat is not an introduction: it answered "will this watch boards
+ * for me?" above the fold, to somebody who had not yet worked out what the tab
+ * was. The claim itself still lives on the page people go to for claims —
+ * How it works, under "What it does not do".
  *
  * That is less than the phrase "saved searches" implies and more than it
  * sounds. After two weeks a hunt has six tuned searches across four boards —
@@ -85,7 +90,7 @@ export function SearchesPanel({
     <div>
       <PanelHeader
         title="Searches"
-        sub="The searches you already tuned, in one place. Nothing here runs a search or watches for new postings — the app has no server and cannot. These are your own links, reopened in one click."
+        sub="All your saved searches in one spot — use the plugin to send them here."
       />
 
       {/* How one gets here, since the answer is "from the extension" and that

@@ -76,7 +76,11 @@ export function OverviewPanel({
     <div>
       <PanelHeader
         title="What needs attention"
-        sub="Everything you have captured, what is still waiting on a decision, and which of your tracks the good stuff is actually landing in. Nothing here moves on its own — this tier has no scrapers and no cron, by design."
+        // One line, and the caveat is gone rather than shortened.
+        // "No scrapers and no cron, by design" is true, important, and belongs
+        // in How it works — on the dashboard it is the app pre-emptively
+        // defending itself to somebody who has not accused it of anything.
+        sub="Your dashboard — what is happening and what needs attention."
         actions={
           <Button size="sm" variant="primary" onClick={onCapture}>
             + Capture a job
@@ -186,7 +190,12 @@ export function OverviewPanel({
                 >
                   <div className="flex justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="truncate text-[14px] font-semibold">
+                      {/* Two lines allowed on a phone, one from `sm`. The
+                          score chip beside it left 188px here, and a job title
+                          cut at 188px — "Founding Product Engineer (full-ti…" —
+                          loses the seniority, the contract type, or both. This
+                          is a list you scan to decide what to open. */}
+                      <div className="line-clamp-2 text-[14px] font-semibold sm:truncate">
                         {job.title}
                       </div>
                       <div className="mt-0.5 truncate text-[12px] text-muted-foreground">

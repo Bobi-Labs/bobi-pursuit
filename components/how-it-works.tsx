@@ -114,7 +114,22 @@ function Step({
  * Reused verbatim by onboarding — there is exactly one description of capture in
  * this product, and it lives here.
  */
-export function CaptureRoutes({ compact = false }: { compact?: boolean }) {
+export function CaptureRoutes({
+  compact = false,
+  onInstallClick,
+}: {
+  compact?: boolean;
+  /**
+   * Fired when either store link is clicked. Optional, and only onboarding
+   * passes it — everywhere else these are plain links with nothing listening.
+   *
+   * It reports a CLICK, not an install. There is no way for a page to know
+   * whether the store tab ended in an extension, so nothing downstream may say
+   * "installed"; the most it can honestly do is stop treating the step as
+   * untouched.
+   */
+  onInstallClick?: () => void;
+}) {
   const [origin, setOrigin] = useState("");
   const linkRef = useRef<HTMLAnchorElement>(null);
 
@@ -192,6 +207,7 @@ export function CaptureRoutes({ compact = false }: { compact?: boolean }) {
                   href={store.href}
                   target="_blank"
                   rel="noreferrer noopener"
+                  onClick={onInstallClick}
                   className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-[13px] font-semibold text-primary transition-colors hover:bg-primary/20"
                 >
                   Install for {store.name} ↗
@@ -345,9 +361,29 @@ function Body({ dense = false }: { dense?: boolean }) {
               off.
             </div>
           </div>
+          {/* Said in the same section as the other honest limits, rather than
+              discovered on a train. The complaint that put it here was not that
+              mobile is broken — it is that nothing set the expectation, so a
+              cramped triage screen reads as a bad app instead of the wrong
+              tool for the moment. */}
+          <div className="rounded-[10px] border border-amber-500/25 bg-amber-500/[0.06] p-3">
+            <div className="text-[14px] font-semibold text-amber-300">
+              It is built for a desktop, and it does not follow you to your
+              phone.
+            </div>
+            <div className="mt-1 text-[14px] leading-relaxed text-muted-foreground">
+              There is no account and no sync, so your board lives in{" "}
+              <Strong>one browser on one device</Strong>. Open the app on your
+              phone and you get a second, empty board — not this one. Moving it
+              across means exporting the JSON here and importing it there, which
+              is a migration rather than a check-in. The browser plugin, which is
+              how jobs get in fastest, is desktop-only for the same reason.
+            </div>
+          </div>
           <Prose>
-            It also does not write applications, email anyone, remind you, or sync
-            between devices. It is triage.
+            It also does not write applications, email anyone, remind you, watch
+            a saved search for new postings, or sync between devices. It is
+            triage.
           </Prose>
         </div>
       </section>
@@ -458,7 +494,9 @@ export function HowItWorksPanel() {
     <div>
       <PanelHeader
         title="How Bobi·Pursuit works"
-        sub="Ninety seconds: what it is, what it will not do, where your data lives, and what the next step up adds. All of it true of the free tier you are using right now."
+        // The one tab where detail is the point, so this stays a signpost
+        // rather than a pitch — but it does not need four clauses to be one.
+        sub="What it is, what it will not do, and where your data lives."
       />
       <Body />
     </div>

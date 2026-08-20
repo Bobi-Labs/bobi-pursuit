@@ -8,9 +8,11 @@
  *
  *  1. **Ask what you are looking for, and make the answer good by default.** A
  *     blank prose box is a wall. The presets are real, specific, written as if a
- *     person wrote them — good enough to leave unedited, concrete enough to
- *     adjust. This step is the entire reason the app is not "three buckets from
- *     the maintainer's own job search".
+ *     person wrote them — good enough to leave unedited, which is what this step
+ *     now relies on: the per-track edit forms moved to Settings, because four
+ *     text fields thirty seconds in is what made three screens feel like ten.
+ *     This step is the entire reason the app is not "three buckets from the
+ *     maintainer's own job search".
  *  2. **Say how jobs get in**, including the part that is not flattering: there
  *     are no scrapers here, capture is a click you make.
  *  3. **Offer the key honestly** — what changes, what it costs, where it lives —
@@ -31,10 +33,9 @@
  * so it is only ever called from a click handler.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { testApiKey } from "@/lib/scoring/llm-scorer";
-import { splitList, joinList } from "@/lib/profile-view";
 import { store } from "@/lib/store/store";
 import {
   MAX_PROFILES,
@@ -49,10 +50,8 @@ import {
   Button,
   ColorBadge,
   Field,
-  HintCard,
   INPUT,
   MoreInfo,
-  PanelCard,
   Steps,
   cx,
 } from "./ui";
@@ -76,6 +75,14 @@ const STEPS = [
  */
 export function Onboarding({ onClose }: { onClose: () => void }) {
   const [step, setStep] = useState(1);
+  /* The welcome popup, above the wizard. See `WelcomeDialog` for why it is a
+     dismissible box and not a screen you walk through. */
+  const [welcome, setWelcome] = useState(true);
+  /* Whether either store link has been CLICKED on step 2. Not whether an
+     extension is installed — a page cannot know that — so nothing built on this
+     may claim it. It only decides whether the forward button reads as a skip or
+     as a continue. See the footer. */
+  const [touchedPlugin, setTouchedPlugin] = useState(false);
   const [picked, setPicked] = useState<Picked[]>([]);
   const [apiKey, setApiKey] = useState("");
   const [testing, setTesting] = useState(false);
@@ -92,16 +99,6 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
       if (current.length >= MAX_PROFILES) return current;
       return [...current, { key: preset.key, profile: profileFromPreset(preset) }];
     });
-  }
-
-  function patch(key: string, patchProfile: Partial<Profile>) {
-    setPicked((current) =>
-      current.map((entry) =>
-        entry.key === key
-          ? { ...entry, profile: { ...entry.profile, ...patchProfile } }
-          : entry,
-      ),
-    );
   }
 
   /** Replaces the starter track outright — this is the user's answer, not an addition. */
@@ -154,6 +151,8 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-background">
+      {welcome ? <WelcomeDialog onClose={() => setWelcome(false)} /> : null}
+
       {/* ── header ── */}
       <div className="relative overflow-hidden border-b border-border px-4 pb-5 pt-6 sm:px-6">
         <div aria-hidden className="banner-mesh absolute inset-0" />
@@ -166,10 +165,12 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
             <h1 className="text-2xl font-bold -tracking-[0.02em]">
               Bobi<span className="text-emerald-400">·</span>Pursuit
             </h1>
-            <p className="mt-1 max-w-lg text-[14px] leading-relaxed text-muted-foreground">
-              Three short steps and you have a job pipeline that scores what you
-              capture against what you actually want. No account, no server,
-              nothing uploaded — it all stays in this browser.
+            {/* One line. The previous three sentences argued the product's
+                case at somebody who has not agreed to read anything yet — and
+                every clause in it is already said better somewhere they will
+                actually be: the welcome popup, or How it works. */}
+            <p className="mt-1 max-w-lg text-[15px] leading-relaxed text-muted-foreground">
+              Welcome to Pursuit — your all-in-one job hunt lifecycle assistant.
             </p>
           </div>
           {/* Through `leave()` like every other exit — see the file header. This
@@ -221,10 +222,11 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
             picked={picked}
             atCeiling={atCeiling}
             onToggle={toggle}
-            onPatch={patch}
           />
         ) : null}
-        {step === 2 ? <StepCapture /> : null}
+        {step === 2 ? (
+          <StepCapture onInstallClick={() => setTouchedPlugin(true)} />
+        ) : null}
         {step === 3 ? (
           <StepKey
             apiKey={apiKey}
@@ -237,7 +239,15 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
       </div>
 
       {/* ── footer ── */}
-      <div className="sticky bottom-0 border-t border-border bg-card/95 px-4 py-3 backdrop-blur sm:px-6">
+      {/* `bg-card` flat below `sm`, blur only from there. A translucent sticky
+          bar over a scrolling list is a known ghosting surface on iOS Safari:
+          the blurred layer repaints out of step and paints a stale copy of the
+          button beside the live one, which is exactly the doubled "Skip — use
+          the default track" the operator photographed. Not reproducible on
+          desktop Chrome, so this is a fix for the likeliest cause rather than
+          one watched to work — it wants a look on his phone. The blur was
+          decoration over an already-opaque bar; nothing is lost. */}
+      <div className="sticky bottom-0 border-t border-border bg-card px-4 py-3 sm:bg-card/95 sm:px-6 sm:backdrop-blur">
         <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-2">
           <Button size="md" variant="ghost" onClick={showMeTheSample}>
             Just show me — load sample data
@@ -249,9 +259,27 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
               </Button>
             ) : null}
             {step < 3 ? (
+              /* The forward button names what you are actually doing.
+               *
+               * On step 2 it reads "Get plugins later" and sits muted until one
+               * of the store links is clicked, then becomes an ordinary green
+               * "Continue". Nothing is blocked — it is never disabled — but a
+               * greyed button that says "later" tells somebody skipping past the
+               * plugin that they are skipping a component, which the identical
+               * green Continue did not.
+               *
+               * ⚠️ It reflects a CLICK on the store link, never an install: a
+               * page cannot see the user's extensions, so a version of this that
+               * says "installed" would be lying on every person who opened the
+               * store and closed it. */
               <Button
                 size="md"
-                variant="primary"
+                variant={step === 2 && !touchedPlugin ? "default" : "primary"}
+                className={
+                  step === 2 && !touchedPlugin
+                    ? "text-muted-foreground"
+                    : undefined
+                }
                 onClick={() => {
                   if (step === 1) commitTracks();
                   setStep(step + 1);
@@ -259,7 +287,9 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
               >
                 {step === 1 && picked.length === 0
                   ? "Skip — use the default track →"
-                  : "Continue →"}
+                  : step === 2 && !touchedPlugin
+                    ? "Get plugins later →"
+                    : "Continue →"}
               </Button>
             ) : (
               <Button size="md" variant="solid" onClick={finish}>
@@ -273,18 +303,102 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
   );
 }
 
+/* ───────────────────────────── Welcome popup ──────────────────────────── */
+
+/**
+ * Four lines, one button, gone.
+ *
+ * The problem it fixes: land on the bare link with no context and the first
+ * thing the app does is ask "What are you looking for?" over twelve preset
+ * tracks. Fine if you arrived from a post that explained the product, baffling
+ * otherwise — which is most people.
+ *
+ * ⚠️ **Keep this small.** The first attempt answered the same problem with a
+ * full explainer screen you walked through, and the operator's verdict was
+ * exactly right: *"this is just 10x the noise it was."* A cold visitor needs one
+ * sentence of orientation, not a landing page — the wizard behind this box is
+ * already good at explaining itself once you know what "it" is. If a future
+ * session finds itself adding a third paragraph here, that is the signal it has
+ * started rebuilding the thing that got reverted.
+ *
+ * Not persisted anywhere. It rides inside first-run onboarding, so it shows on
+ * the visit that opens the wizard and never again — no storage key, nothing to
+ * migrate, and no way for it to reappear at someone already using the app.
+ */
+function WelcomeDialog({ onClose }: { onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+      // Clicking the dim closes it. The box below stops the bubble, so a click
+      // that lands on the text does not dismiss what you are reading.
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="welcome-title"
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg rounded-[16px] border border-emerald-500/30 bg-card p-6 shadow-[0_0_80px_-16px_rgba(16,185,129,0.55)] ring-1 ring-emerald-400/20"
+      >
+        <h2
+          id="welcome-title"
+          className="text-[24px] font-bold -tracking-[0.02em] text-foreground"
+        >
+          Welcome to Bobi<span className="text-emerald-400">·</span>Pursuit 👋
+        </h2>
+        <div className="mt-3 space-y-2.5 text-[16px] leading-relaxed text-foreground/90">
+          <p>A web-based job hunt assistant and tracker.</p>
+          <p>
+            Use the browser plugin to save postings to your board, and track each
+            one through applied, interviewing and offer.
+          </p>
+          <p>
+            Save your job searches, find CV and interview resources, and keep the
+            whole hunt in one place.
+          </p>
+          {/* ⚠️ This line said "a phone is fine for checking in" and that was
+              simply untrue — the operator caught it. There is no sync and no
+              account: the board is in ONE browser's local storage, so opening
+              the app on a phone hands you a different, empty board. Export and
+              import is the only bridge, and that is a migration, not a check-in.
+              Say device, not just browser; "this browser" reads as "the app" to
+              somebody who has not thought about where it lives. */}
+          <p className="text-muted-foreground">
+            Free, no account — everything saves in this browser, on this device
+            only. Built for a desktop.
+          </p>
+        </div>
+        <div className="mt-4 flex justify-end">
+          {/* `autoFocus` rather than a ref: `Button` spreads its rest props
+              onto the DOM node, so this needs no ref plumbing, and it puts the
+              only control under Enter for a keyboard user. */}
+          <Button autoFocus size="md" variant="solid" onClick={onClose}>
+            Get started →
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─────────────────────────────── Step 1 ─────────────────────────────── */
 
 function StepTracks({
   picked,
   atCeiling,
   onToggle,
-  onPatch,
 }: {
   picked: Picked[];
   atCeiling: boolean;
   onToggle: (preset: ProfilePreset) => void;
-  onPatch: (key: string, patch: Partial<Profile>) => void;
 }) {
   return (
     <div className="space-y-4">
@@ -292,17 +406,14 @@ function StepTracks({
         What are you looking for?
       </h2>
 
-      {/* The argument for scoring tracks apart from each other used to be a
-          paragraph stacked between the heading and the grid, which made it the
-          first thing in the way and therefore the first thing skipped. Same
-          argument, cut to the sentence that carries it, sitting where the eye
-          already goes on the way to the presets instead of in front of them. */}
-      <HintCard title="Separate scores">
-        Pick up to {MAX_PROFILES}{" "}
-        <span className="font-semibold">tracks</span> and edit them any time.
-        Each is scored on its own: a posting that is a 90 for contract work is a
-        20 for a salaried role, and one averaged number would hide exactly that.
-      </HintCard>
+      {/* An instruction, not an explanation.
+          This was a four-line argument for why tracks are scored separately —
+          correct, and answering a question nobody has on the screen where they
+          are being asked to click some boxes. The reasoning survives in How it
+          works, where a person who wants it will look. */}
+      <p className="text-[15px] text-muted-foreground">
+        Pick up to {MAX_PROFILES} areas of expertise below.
+      </p>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {PROFILE_PRESETS.map((preset) => {
@@ -351,76 +462,30 @@ function StepTracks({
         })}
       </div>
 
+      {/* ⚠️ The per-track edit forms used to live here — name, badge, a prose
+          description and a keyword list, one card per pick — and they are gone
+          on purpose. Not because editing is unimportant: it is the single
+          highest-value thing a user can do, and the reason the app is not "three
+          buckets from the maintainer's own job search".
+
+          They are gone because this is the door. Somebody who has clicked two
+          checkboxes on their first thirty seconds with an unfamiliar tool has
+          not earned four text fields, and the fields were what made a
+          three-screen wizard feel like paperwork — the operator's tester said
+          "too many steps" about a flow that has three. The presets are written
+          to be good unedited; every one of these fields is in Settings, and the
+          line below says so.
+
+          If a future session is tempted to put them back: the edit surface is
+          not missing, it is relocated. Adding it here again re-adds the wall. */}
       {picked.length === 0 ? (
-        <p className="text-[14px] leading-relaxed text-text-muted">
-          Pick nothing and you get one broad software-engineering track to start
-          from — fine for a look around, worth replacing before you trust a
-          number.
+        <p className="text-[14px] text-text-muted">
+          Pick nothing and you start on a broad software-engineering track.
         </p>
       ) : (
-        <div className="space-y-2.5">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-            Make them yours
-          </div>
-          {picked.map((entry) => (
-            <PanelCard key={entry.key}>
-              <div className="mb-2.5 flex items-center gap-2">
-                <ColorBadge tone={entry.profile.tone}>
-                  {entry.profile.short || "track"}
-                </ColorBadge>
-                <span className="text-[14px] font-semibold">
-                  {entry.profile.name}
-                </span>
-              </div>
-              <div className="space-y-2.5">
-                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-[1fr_130px]">
-                  <Field label="Name">
-                    <input
-                      className={INPUT}
-                      value={entry.profile.name}
-                      onChange={(e) => onPatch(entry.key, { name: e.target.value })}
-                    />
-                  </Field>
-                  <Field label="Badge">
-                    <input
-                      className={INPUT}
-                      maxLength={10}
-                      value={entry.profile.short}
-                      onChange={(e) =>
-                        onPatch(entry.key, { short: e.target.value })
-                      }
-                    />
-                  </Field>
-                </div>
-                <Field
-                  label="What you're looking for"
-                  hint="Written for a person to read. With an Anthropic key set later, this paragraph is exactly what Claude judges a posting against."
-                >
-                  <textarea
-                    className={cx(INPUT, "min-h-[110px] resize-y leading-relaxed")}
-                    value={entry.profile.description}
-                    onChange={(e) =>
-                      onPatch(entry.key, { description: e.target.value })
-                    }
-                    placeholder="Describe the work you would actually say yes to…"
-                  />
-                </Field>
-                <Field
-                  label="Keywords"
-                  hint="Comma-separated. These are what the free tier matches on, literally."
-                >
-                  <input
-                    className={INPUT}
-                    value={joinList(entry.profile.keywords)}
-                    onChange={(e) =>
-                      onPatch(entry.key, { keywords: splitList(e.target.value) })
-                    }
-                  />
-                </Field>
-              </div>
-            </PanelCard>
-          ))}
-        </div>
+        <p className="text-[14px] text-muted-foreground">
+          You can edit these later in Settings.
+        </p>
       )}
     </div>
   );
@@ -428,7 +493,7 @@ function StepTracks({
 
 /* ─────────────────────────────── Step 2 ─────────────────────────────── */
 
-function StepCapture() {
+function StepCapture({ onInstallClick }: { onInstallClick: () => void }) {
   return (
     <div className="space-y-4">
       <div>
@@ -462,7 +527,7 @@ function StepCapture() {
           in CaptureRoutes, which is what made the pair look mismatched.
           The full argument still lives in How it works, under "What it does not
           do", where somebody asking the question will actually be. */}
-      <CaptureRoutes />
+      <CaptureRoutes onInstallClick={onInstallClick} />
     </div>
   );
 }

@@ -217,6 +217,25 @@ export const JOB_SITES: JobSite[] = [
     alerts: "both",
   },
   {
+    /* Added 2026-08-22 after the operator noticed it was missing. Figures
+       below are what the site reported on the day, not marketing copy. */
+    name: "Remote Rocketship",
+    url: "https://www.remoterocketship.com/",
+    category: "remote",
+    blurb: "Crawls company career pages directly, and scores every listing for how likely it is to be a ghost job.",
+    strengths: [
+      "A per-listing ghost-job score and an “is it on LinkedIn?” filter — it claims 37% of a given week's postings never appear there, which is the whole reason to use it",
+      "Very deep: 193,000 listings with ~20,000 added weekly, pulled from employers' own career pages rather than from other boards",
+      "Filters that most boards do not offer — minimum salary, seniority, company size, tech stack, visa sponsorship — plus email alerts on a saved search",
+    ],
+    weaknesses: [
+      "The API, and the account features worth having, need a paid subscription; the price is only visible after you sign up",
+      "Career-page crawling drags in aggregator noise — one staffing agency was attached to five unrelated director-level roles, all stamped the same minute",
+      "Sits behind aggressive Cloudflare: anything that is not a real browser is refused, so it cannot be automated from a script the way Remote OK can",
+    ],
+    alerts: "email",
+  },
+  {
     name: "Himalayas",
     url: "https://himalayas.app/jobs",
     category: "remote",
